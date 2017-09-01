@@ -1,10 +1,11 @@
 import nextSongs.nextSongs as nextSongs
-# import nextSongs as nextSongs
+from dateutil.relativedelta import relativedelta
 import datetime
 import sys
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QVariant
+from PyQt5.QtPrintSupport import *
 
 nextSongs.Config.read_config()
 st = nextSongs.SongTimer()
@@ -184,6 +185,11 @@ class MainWindow(QWidget):
         del_btn.clicked.connect(self.delete_selected_song)
         del_btn.resize(del_btn.sizeHint())
 
+        # Create print button
+        print_btn = QPushButton('Print')
+        print_btn.clicked.connect(self.show_print_dialog)
+        print_btn.resize(print_btn.sizeHint())
+
         # Create exit button
         exit_btn = QPushButton('Exit')
         exit_btn.clicked.connect(sys.exit)
@@ -201,6 +207,7 @@ class MainWindow(QWidget):
         layout.addWidget(todays_songs_btn)
         layout.addWidget(add_btn)
         layout.addWidget(del_btn)
+        layout.addWidget(print_btn)
         layout.addWidget(self.table)
         layout.addWidget(open_prefs_btn)
         layout.addWidget(exit_btn)
@@ -285,6 +292,34 @@ class MainWindow(QWidget):
         prefs = Preferences()
         prefs.exec_()
         self.update_categories()
+
+    def generate_printable_html_table(self, days):
+        table = "<table style='padding-right: 10px;'>'"
+        for i in range(days):
+            date = datetime.datetime.now().date() + relativedelta(days=+i)
+            table += "<tr><td>" + str(date) + ":</td></tr>"
+            for song in st.get_songs_for_date(datetime.datetime.now().date() + relativedelta(days=+1)):
+                table += "<tr><td></td><td>" + song.location + "<td></td><td></td><td>" + song.title + '</td></tr>'
+            # table += '\n'
+        return table
+
+
+
+    def show_print_dialog(self):
+        item, ok = QInputDialog.getInt(self, "Days to print", "How many days should be printed?", 7)
+        if not item or not ok:
+            return
+        days = item
+        doc = QTextDocument()
+        cursor = QTextCursor(doc)
+        cursor.insertHtml("<h1>Trainingsset: " + str(datetime.datetime.now().date()) + " - " + str(datetime.datetime.now().date() + relativedelta(days=+days-1)) + "</h1><p>")
+        cursor.insertHtml(self.generate_printable_html_table(days))
+        printer = QPrinter()
+        def handlePaintRequest(printer):
+            doc.print_(printer)
+        dialog = QPrintPreviewDialog(printer)
+        dialog.paintRequested.connect(handlePaintRequest)
+        dialog.exec_()
 
 def main():
     widget = MainWindow()
