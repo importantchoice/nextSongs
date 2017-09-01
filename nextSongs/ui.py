@@ -2,7 +2,8 @@ import nextSongs.nextSongs as nextSongs
 # import nextSongs as nextSongs
 import datetime
 import sys
-from PyQt4.QtGui import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 nextSongs.read_config()
 st = nextSongs.SongTimer()
