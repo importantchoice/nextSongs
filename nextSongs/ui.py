@@ -6,6 +6,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QVariant
 from PyQt5.QtPrintSupport import *
+import PyQt5.Qt as Qt
 
 nextSongs.Config.read_config()
 st = nextSongs.SongTimer()
@@ -169,6 +170,8 @@ class MainWindow(QWidget):
          
         # Apply the model to the list view
         self.table.setModel(self.model)
+        self.table.setSortingEnabled(True)
+        self.table.sortByColumn(1, 1)
 
         # Create add button
         add_btn = QPushButton('Add Song')
@@ -302,8 +305,6 @@ class MainWindow(QWidget):
                 table += "<tr><td></td><td>" + song.location + "<td></td><td></td><td>" + song.title + '</td></tr>'
             # table += '\n'
         return table
-
-
 
     def show_print_dialog(self):
         item, ok = QInputDialog.getInt(self, "Days to print", "How many days should be printed?", 7)
