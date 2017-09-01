@@ -151,7 +151,7 @@ class ListWindow(QWidget):
      
         # Create an empty model for the list's data
         self.model = QStandardItemModel(self.table)
-        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight', 'Location', 'In Middle Aged', 'Category'])
+        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight', 'Location', 'Force middle old', 'Category'])
         self.model.itemChanged.connect(self.on_item_changed)
         self.model.setColumnCount(6)
 
@@ -307,8 +307,8 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(prefAct)
-        fileMenu.addAction(exitAct)
         fileMenu.addAction(printAct)
+        fileMenu.addAction(exitAct)
 
         self.show()
 
