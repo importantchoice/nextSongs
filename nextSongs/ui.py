@@ -180,16 +180,17 @@ class MainWindow(QWidget):
         song = nextSongs.Song("Song Title", datetime.datetime.now().date())
         st.songs.append(song)
         item = QSong(song)
-        item.setColumnCount(3)
-        item.appendColumn([QSongDate(song)])
-        item.appendColumn([QSongWeight(song)])
 
         item.setCheckable(True)
         if song.current:
             item.setCheckState(2)
         self.model.appendRow([item, QSongDate(song), QSongWeight(song)])
         self.table.resizeColumnsToContents()
+        # Scroll table down, select inserted column and go into edit mode for first cell
         self.table.scrollToBottom()
+        self.table.selectRow(self.model.rowCount() - 1)
+        self.table.edit(self.table.selectedIndexes()[0])
+        # save songs
         st.write_songs()
 
     def on_item_changed(self, item):
