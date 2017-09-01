@@ -13,39 +13,43 @@ class Config:
 
     def __inti__(self):
         pass
-config = Config()
 
+    @staticmethod
+    def read_config():
+        if not os.path.isfile(config_filename):
+            Config.save_config()
+            raise Exception("config file does not exist. try to rerun the program.")
+        with open(config_filename) as data_file:    
+            config = json.load(data_file)
+        Config.songs_per_day = config["songs_per_day"]
+        Config.old_songs_per_day = config["old_songs_per_day"]
+        Config.middle_old_period = config["middle_old_period"]
+        Config.fill_up_song_list = config["fill_up_song_list"]
+
+    @staticmethod
+    def save_config():
+        config = {}
+        config["songs_per_day"] = Config.songs_per_day
+        config["old_songs_per_day"] = Config.old_songs_per_day
+        config["middle_old_period"] = Config.middle_old_period
+        config["fill_up_song_list"] = Config.fill_up_song_list
+
+        if not os.path.exists(os.path.dirname(config_filename)):
+            try:
+                os.makedirs(os.path.dirname(config_filename))
+            except OSError as exc: # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+        with open(config_filename, "w+") as f:
+            json.dump(config, f)
+
+
+config = Config()
 appname = 'nextSongs'
 appauthor = 'random'
 config_filename = os.path.join(user_data_dir(appname, appauthor), 'config.json')
 data_filename = os.path.join(user_data_dir(appname, appauthor), 'data.json')
 
-def read_config():
-    if not os.path.isfile(config_filename):
-        save_config()
-        raise Exception("config file does not exist. try to rerun the program.")
-    with open(config_filename) as data_file:    
-        config = json.load(data_file)
-    Config.songs_per_day = config["songs_per_day"]
-    Config.old_songs_per_day = config["old_songs_per_day"]
-    Config.middle_old_period = config["middle_old_period"]
-    Config.fill_up_song_list = config["fill_up_song_list"]
-
-def save_config():
-    config = {}
-    config["songs_per_day"] = Config.songs_per_day
-    config["old_songs_per_day"] = Config.old_songs_per_day
-    config["middle_old_period"] = Config.middle_old_period
-    config["fill_up_song_list"] = Config.fill_up_song_list
-
-    if not os.path.exists(os.path.dirname(config_filename)):
-        try:
-            os.makedirs(os.path.dirname(config_filename))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
-    with open(config_filename, "w+") as f:
-        json.dump(config, f)
 
 
 
@@ -176,7 +180,7 @@ class SongTimer:
 
 def main():
     print("reading config from", config_filename)
-    read_config()
+    Config.read_config()
     print("loading data from", data_filename)
     st = SongTimer(True)
     d = datetime.datetime.now() + relativedelta(days=+0)

@@ -5,7 +5,7 @@ import sys
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-nextSongs.read_config()
+nextSongs.Config.read_config()
 st = nextSongs.SongTimer()
 st.read_songs()
 
@@ -44,160 +44,172 @@ def on_item_changed(item):
     st.write_songs()
 
 def show_todays_songs():
-    list_popup = QListView()
-    list_popup.setWindowTitle('Todays songs')
-    list_popup.setMinimumSize(600, 400)
-    model = QStandardItemModel(list_popup)
-    for song in st.get_songs_for_date(datetime.datetime.now()):
-        print(song.title)
-        item = QSong(song)
-        model.appendRow(item)
-    list_popup.setModel(model)
+    todays_songs = Todays_Songs()
+    todays_songs.exec_()
 
+class Todays_Songs(QDialog):
+    def __init__(self):
+        super().__init__()
+        list_popup = QListView()
+        list_popup.setWindowTitle('Todays songs')
+        list_popup.setMinimumSize(600, 400)
+        model = QStandardItemModel(list_popup)
+        for song in st.get_songs_for_date(datetime.datetime.now()):
+            print(song.title)
+            item = QSong(song)
+            model.appendRow(item)
+        list_popup.setModel(model)
 
-    dialog = QDialog()
-    # Create exit button
-    exit_btn = QPushButton('Exit')
-    exit_btn.clicked.connect(dialog.accept)
-    dialog.list_popup = list_popup
-    dialog.verticalLayout = QVBoxLayout(dialog)
-    dialog.verticalLayout.addWidget(dialog.list_popup)
-    dialog.verticalLayout.addWidget(exit_btn)
-    dialog.exec_()
+        exit_btn = QPushButton('Exit')
+        exit_btn.clicked.connect(self.accept)
+        self.list_popup = list_popup
+        self.verticalLayout = QVBoxLayout(self)
+        self.verticalLayout.addWidget(self.list_popup)
+        self.verticalLayout.addWidget(exit_btn)
 
 def show_preferences():
-    dialog = QDialog()
-    def save_prefs():
-        nextSongs.Config.songs_per_day = dialog.settings_spd.value()
-        nextSongs.Config.old_songs_per_day = dialog.settings_ospd.value()
-        nextSongs.Config.middle_old_period = dialog.settings_mop.value()
-        nextSongs.save_config()
-        dialog.accept()
-    dialog.settings_spd = QSpinBox()
-    dialog.settings_spd.setMinimum(1)
-    dialog.settings_spd.setSingleStep(1);
-    dialog.settings_spd.setValue(nextSongs.Config.songs_per_day)
-    dialog.settings_ospd = QSpinBox()
-    dialog.settings_ospd.setMinimum(0)
-    dialog.settings_ospd.setSingleStep(1);
-    dialog.settings_ospd.setValue(nextSongs.Config.old_songs_per_day)
-    dialog.settings_mop = QSpinBox()
-    dialog.settings_mop.setMinimum(1)
-    dialog.settings_mop.setSingleStep(1);
-    dialog.settings_mop.setValue(nextSongs.Config.middle_old_period)
-    dialog.btn_save = QPushButton('Save')
-    dialog.btn_save.clicked.connect(save_prefs)
-    dialog.btn_exit = QPushButton('Cancel')
-    dialog.btn_exit.clicked.connect(dialog.accept)
-    dialog.verticalLayout = QVBoxLayout(dialog)
-    dialog.verticalLayout.addWidget(QLabel("Songs per day: "))
-    dialog.verticalLayout.addWidget(dialog.settings_spd)
-    dialog.verticalLayout.addWidget(QLabel("Old songs per day: "))
-    dialog.verticalLayout.addWidget(dialog.settings_ospd)
-    dialog.verticalLayout.addWidget(QLabel("Interval to repeat all middle old songs: "))
-    dialog.verticalLayout.addWidget(dialog.settings_mop)
-    dialog.verticalLayout.addWidget(dialog.btn_save)
-    dialog.verticalLayout.addWidget(dialog.btn_exit)
-    dialog.exec_()
+    prefs = Preferences()
+    prefs.exec_()
+
+class Preferences(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.settings_spd = QSpinBox()
+        self.settings_spd.setMinimum(1)
+        self.settings_spd.setSingleStep(1);
+        self.settings_spd.setValue(nextSongs.Config.songs_per_day)
+        self.settings_ospd = QSpinBox()
+        self.settings_ospd.setMinimum(0)
+        self.settings_ospd.setSingleStep(1);
+        self.settings_ospd.setValue(nextSongs.Config.old_songs_per_day)
+        self.settings_mop = QSpinBox()
+        self.settings_mop.setMinimum(1)
+        self.settings_mop.setSingleStep(1);
+        self.settings_mop.setValue(nextSongs.Config.middle_old_period)
+        self.btn_save = QPushButton('Save')
+        self.btn_save.clicked.connect(self.save_prefs)
+        self.btn_exit = QPushButton('Cancel')
+        self.btn_exit.clicked.connect(self.accept)
+        self.verticalLayout = QVBoxLayout(self)
+        self.verticalLayout.addWidget(QLabel("Songs per day: "))
+        self.verticalLayout.addWidget(self.settings_spd)
+        self.verticalLayout.addWidget(QLabel("Old songs per day: "))
+        self.verticalLayout.addWidget(self.settings_ospd)
+        self.verticalLayout.addWidget(QLabel("Interval to repeat all middle old songs: "))
+        self.verticalLayout.addWidget(self.settings_mop)
+        self.verticalLayout.addWidget(self.btn_save)
+        self.verticalLayout.addWidget(self.btn_exit)
+
+    def save_prefs(self, i):
+        nextSongs.Config.songs_per_day = self.settings_spd.value()
+        nextSongs.Config.old_songs_per_day = self.settings_ospd.value()
+        nextSongs.Config.middle_old_period = self.settings_mop.value()
+        nextSongs.Config.save_config()
+        self.accept()
 
 
 # Create a Qt application
 app = QApplication(sys.argv)
 widget = QWidget()
-layout = QGridLayout()
+
+class MainWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QGridLayout()
  
-# Our main window will be a QTableView
-# list = QListView()
-list = QTableView()
-list.setWindowTitle('Example List')
-list.setMinimumSize(600, 400)
- 
-# Create an empty model for the list's data
-model = QStandardItemModel(list)
-model.setHorizontalHeaderLabels(['Title', 'Date'])
-model.itemChanged.connect(on_item_changed)
-model.setColumnCount(2)
+        # Our main window will be a QTableView
+        self.table = QTableView()
+        self.table.setWindowTitle('nextSongs')
+        self.table.setMinimumSize(600, 400)
+     
+        # Create an empty model for the list's data
+        self.model = QStandardItemModel(self.table)
+        self.model.setHorizontalHeaderLabels(['Title', 'Date'])
+        self.model.itemChanged.connect(on_item_changed)
+        self.model.setColumnCount(2)
 
-for song in st.songs:
-    # create an item with a caption
-    item = QSong(song)
-    item.setColumnCount(2)
-    item.appendColumn([QSongDate(song)])
- 
-    # add a checkbox to it
-    item.setCheckable(True)
-    if song.current:
-        item.setCheckState(2)
- 
-    # Add the item to the model
-    model.appendRow([item, QSongDate(song)])
- 
-# Apply the model to the list view
-list.setModel(model)
+        # Fill table with data
+        for song in st.songs:
+            # create an item with a caption
+            item = QSong(song)
+            item.setColumnCount(2)
+            item.appendColumn([QSongDate(song)])
+         
+            # add a checkbox to it
+            item.setCheckable(True)
+            if song.current:
+                item.setCheckState(2)
+         
+            # Add the item to the model
+            self.model.appendRow([item, QSongDate(song)])
+         
+        # Apply the model to the list view
+        self.table.setModel(self.model)
 
-# Create add button
-def add_song():
-    song = nextSongs.Song("Song Title", datetime.datetime.now().date())
-    st.songs.append(song)
-    item = QSong(song)
-    item.setColumnCount(2)
-    item.appendColumn([QSongDate(song)])
-    item.setCheckable(True)
-    if song.current:
-        item.setCheckState(2)
-    model.appendRow([item, QSongDate(song)])
-    list.resizeColumnsToContents()
-    st.write_songs()
+        # Create add button
+        add_btn = QPushButton('Add Song')
+        add_btn.clicked.connect(self.add_song)
+        add_btn.resize(add_btn.sizeHint())
 
-add_btn = QPushButton('Add Song')
-add_btn.clicked.connect(add_song)
-add_btn.resize(add_btn.sizeHint())
+        # Create todays songs button
+        todays_songs_btn = QPushButton('Todays Songs')
+        todays_songs_btn.clicked.connect(show_todays_songs)
+        todays_songs_btn.resize(todays_songs_btn.sizeHint())
 
-# Create todays songs button
-todays_songs_btn = QPushButton('Todays Songs')
-todays_songs_btn.clicked.connect(show_todays_songs)
-todays_songs_btn.resize(todays_songs_btn.sizeHint())
+        # Create delete button
+        del_btn = QPushButton('Remove Song')
+        del_btn.clicked.connect(self.delete_selected_song)
+        del_btn.resize(del_btn.sizeHint())
 
-# Create delete button
-def delete_selected_song():
-    if len(list.selectedIndexes()) == 0:
-        return
-    indices = [list.selectedIndexes()[0]]
-    for i in indices:
-        item = model.itemFromIndex(i)
-        st.songs.remove(item.song)
-        model.removeRow(i.row())
-    list.resizeColumnsToContents()
-    st.write_songs()
+        # Create exit button
+        exit_btn = QPushButton('Exit')
+        exit_btn.clicked.connect(sys.exit)
+        exit_btn.resize(exit_btn.sizeHint())
 
-del_btn = QPushButton('Remove Song')
-del_btn.clicked.connect(delete_selected_song)
-del_btn.resize(del_btn.sizeHint())
+        # Create open_prefs button
+        open_prefs_btn = QPushButton('Open Preferences')
+        open_prefs_btn.clicked.connect(show_preferences)
+        open_prefs_btn.resize(open_prefs_btn.sizeHint())
 
-# Create exit button
-exit_btn = QPushButton('Exit')
-exit_btn.clicked.connect(sys.exit)
-exit_btn.resize(exit_btn.sizeHint())
+        # fit column to content size
+        self.table.resizeColumnsToContents()
 
-# Create open_prefs button
-open_prefs_btn = QPushButton('Open Preferences')
-open_prefs_btn.clicked.connect(show_preferences)
-open_prefs_btn.resize(open_prefs_btn.sizeHint())
+        # Add widgets to layout
+        layout.addWidget(todays_songs_btn)
+        layout.addWidget(add_btn)
+        layout.addWidget(del_btn)
+        layout.addWidget(self.table)
+        layout.addWidget(open_prefs_btn)
+        layout.addWidget(exit_btn)
+        # Show the window and run the app
+        self.setLayout(layout)
 
-# fit column to content size
-list.resizeColumnsToContents()
+    def delete_selected_song(self):
+        if len(self.table.selectedIndexes()) == 0:
+            return
+        indices = [self.table.selectedIndexes()[0]]
+        for i in indices:
+            item = self.model.itemFromIndex(i)
+            st.songs.remove(item.song)
+            self.model.removeRow(i.row())
+        self.table.resizeColumnsToContents()
+        st.write_songs()
 
-# Add widgets to layout
-layout.addWidget(todays_songs_btn)
-layout.addWidget(add_btn)
-layout.addWidget(del_btn)
-layout.addWidget(list)
-layout.addWidget(open_prefs_btn)
-layout.addWidget(exit_btn)
-# Show the window and run the app
-widget.setLayout(layout)
+    def add_song(self):
+        song = nextSongs.Song("Song Title", datetime.datetime.now().date())
+        st.songs.append(song)
+        item = QSong(song)
+        item.setColumnCount(2)
+        item.appendColumn([QSongDate(song)])
+        item.setCheckable(True)
+        if song.current:
+            item.setCheckState(2)
+        self.model.appendRow([item, QSongDate(song)])
+        self.table.resizeColumnsToContents()
+        st.write_songs()
 
 def main():
+    widget = MainWindow()
     widget.show()
     app.exec_()
 
