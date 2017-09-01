@@ -189,6 +189,7 @@ class MainWindow(QWidget):
             item.setCheckState(2)
         self.model.appendRow([item, QSongDate(song), QSongWeight(song)])
         self.table.resizeColumnsToContents()
+        self.table.scrollToBottom()
         st.write_songs()
 
     def on_item_changed(self, item):
