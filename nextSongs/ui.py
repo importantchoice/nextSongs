@@ -90,6 +90,7 @@ class Todays_Songs(QDialog):
             item2.setEditable(False)
             model.appendRow([item, item2])
         list_popup.setModel(model)
+        list_popup.resizeColumnsToContents()
 
         exit_btn = QPushButton('Exit')
         exit_btn.clicked.connect(self.accept)
@@ -139,14 +140,13 @@ class Preferences(QDialog):
 # Create a Qt application
 app = QApplication(sys.argv)
 
-class MainWindow(QWidget):
+class ListWindow(QWidget):
     def __init__(self):
         super().__init__()
         layout = QGridLayout()
  
         # Our main window will be a QTableView
         self.table = QTableView()
-        self.table.setWindowTitle('nextSongs')
         self.table.setMinimumSize(600, 400)
      
         # Create an empty model for the list's data
@@ -188,21 +188,6 @@ class MainWindow(QWidget):
         del_btn.clicked.connect(self.delete_selected_song)
         del_btn.resize(del_btn.sizeHint())
 
-        # Create print button
-        print_btn = QPushButton('Print')
-        print_btn.clicked.connect(self.show_print_dialog)
-        print_btn.resize(print_btn.sizeHint())
-
-        # Create exit button
-        exit_btn = QPushButton('Exit')
-        exit_btn.clicked.connect(sys.exit)
-        exit_btn.resize(exit_btn.sizeHint())
-
-        # Create open_prefs button
-        open_prefs_btn = QPushButton('Open Preferences')
-        open_prefs_btn.clicked.connect(self.show_preferences)
-        open_prefs_btn.resize(open_prefs_btn.sizeHint())
-
         # fit column to content size
         self.table.resizeColumnsToContents()
 
@@ -210,10 +195,7 @@ class MainWindow(QWidget):
         layout.addWidget(todays_songs_btn)
         layout.addWidget(add_btn)
         layout.addWidget(del_btn)
-        layout.addWidget(print_btn)
         layout.addWidget(self.table)
-        layout.addWidget(open_prefs_btn)
-        layout.addWidget(exit_btn)
         # Show the window and run the app
         self.setLayout(layout)
 
@@ -291,10 +273,60 @@ class MainWindow(QWidget):
                 if isinstance(cell, QSongCategory):
                     cell.update_text()
 
-    def show_preferences(self):
-        prefs = Preferences()
-        prefs.exec_()
-        self.update_categories()
+
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.setGeometry(300, 300, 250, 150)
+        self.setWindowTitle('nextSongs')
+
+        self.list = ListWindow()
+        self.setCentralWidget(self.list)
+
+        # Menu
+        exitAct = QAction(QIcon('exit.png'), '&Exit', self)
+        exitAct.setShortcut('Ctrl+Q')
+        exitAct.setStatusTip('Exit application')
+        exitAct.triggered.connect(qApp.quit)
+
+        printAct = QAction(QIcon('print.png'), '&Print', self)
+        printAct.setShortcut('Ctrl+P')
+        printAct.setStatusTip('Print trainingset')
+        printAct.triggered.connect(self.show_print_dialog)
+
+        prefAct = QAction(QIcon('preferences.png'), '&Preferences', self)
+        prefAct.setShortcut('Ctrl+S')
+        prefAct.triggered.connect(self.show_preferences)
+        
+
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(prefAct)
+        fileMenu.addAction(exitAct)
+        fileMenu.addAction(printAct)
+
+        self.show()
+
+    def show_print_dialog(self):
+        item, ok = QInputDialog.getInt(self, "Days to print", "How many days should be printed?", 7)
+        if not item or not ok:
+            return
+        days = item
+        doc = QTextDocument()
+        cursor = QTextCursor(doc)
+        cursor.insertHtml("<h1>Trainingset: " + str(datetime.datetime.now().date()) + " - " + str(datetime.datetime.now().date() + relativedelta(days=+days-1)) + "</h1><p>")
+        cursor.insertHtml(self.generate_printable_html_table(days))
+        printer = QPrinter()
+        def handlePaintRequest(printer):
+            doc.print_(printer)
+        dialog = QPrintPreviewDialog(printer)
+        dialog.paintRequested.connect(handlePaintRequest)
+        dialog.exec_()
 
     def generate_printable_html_table(self, days):
         table = "<table style='padding-right: 10px;'>'"
@@ -306,25 +338,13 @@ class MainWindow(QWidget):
             # table += '\n'
         return table
 
-    def show_print_dialog(self):
-        item, ok = QInputDialog.getInt(self, "Days to print", "How many days should be printed?", 7)
-        if not item or not ok:
-            return
-        days = item
-        doc = QTextDocument()
-        cursor = QTextCursor(doc)
-        cursor.insertHtml("<h1>Trainingsset: " + str(datetime.datetime.now().date()) + " - " + str(datetime.datetime.now().date() + relativedelta(days=+days-1)) + "</h1><p>")
-        cursor.insertHtml(self.generate_printable_html_table(days))
-        printer = QPrinter()
-        def handlePaintRequest(printer):
-            doc.print_(printer)
-        dialog = QPrintPreviewDialog(printer)
-        dialog.paintRequested.connect(handlePaintRequest)
-        dialog.exec_()
+    def show_preferences(self):
+        prefs = Preferences()
+        prefs.exec_()
+        self.list.update_categories()
 
 def main():
     widget = MainWindow()
-    widget.show()
     app.exec_()
 
 if __name__ == "__main__":
