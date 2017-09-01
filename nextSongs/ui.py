@@ -21,27 +21,6 @@ class QSongDate(QStandardItem):
         self.song = song
         self.setText(str(song.date))
 
-def on_item_changed(item):
-    """
-    if 'current' status changed, apply it also to its song item
-    also change date if it was changed
-    """
-    if isinstance(item, QSong):
-        item.song.title = item.text()
-        item.song.current = item.checkState()
-    elif isinstance(item, QSongDate):
-        try:
-            d = item.text().split('-')
-            year = int(d[0])
-            month = int(d[1])
-            day = int(d[2])
-            d = datetime.date(year, month, day)
-            item.song.date = d
-            item.setText(str(item.song.date))
-
-        except:
-            item.setText(str(item.song.date))
-    st.write_songs()
 
 def show_todays_songs():
     todays_songs = Todays_Songs()
@@ -125,7 +104,7 @@ class MainWindow(QWidget):
         # Create an empty model for the list's data
         self.model = QStandardItemModel(self.table)
         self.model.setHorizontalHeaderLabels(['Title', 'Date'])
-        self.model.itemChanged.connect(on_item_changed)
+        self.model.itemChanged.connect(self.on_item_changed)
         self.model.setColumnCount(2)
 
         # Fill table with data
@@ -206,6 +185,28 @@ class MainWindow(QWidget):
             item.setCheckState(2)
         self.model.appendRow([item, QSongDate(song)])
         self.table.resizeColumnsToContents()
+        st.write_songs()
+
+    def on_item_changed(self, item):
+        """
+        if 'current' status changed, apply it also to its song item
+        also change date if it was changed
+        """
+        if isinstance(item, QSong):
+            item.song.title = item.text()
+            item.song.current = item.checkState()
+        elif isinstance(item, QSongDate):
+            try:
+                d = item.text().split('-')
+                year = int(d[0])
+                month = int(d[1])
+                day = int(d[2])
+                d = datetime.date(year, month, day)
+                item.song.date = d
+                item.setText(str(item.song.date))
+
+            except:
+                item.setText(str(item.song.date))
         st.write_songs()
 
 def main():
