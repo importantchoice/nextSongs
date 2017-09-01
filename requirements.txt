@@ -1,3 +1,2 @@
-nextSongs.py:from appdirs import *
-dateutil
-PyQt4
+appdirs
+PyQt5
