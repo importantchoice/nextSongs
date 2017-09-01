@@ -1,9 +1,0 @@
-setup.py
-nextSongs/__init__.py
-nextSongs/nextSongs.py
-nextSongs/ui.py
-nextSongs.egg-info/PKG-INFO
-nextSongs.egg-info/SOURCES.txt
-nextSongs.egg-info/dependency_links.txt
-nextSongs.egg-info/entry_points.txt
-nextSongs.egg-info/top_level.txt
