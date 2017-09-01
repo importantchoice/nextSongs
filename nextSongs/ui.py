@@ -1,8 +1,10 @@
-import nextSongs
+import nextSongs.nextSongs as nextSongs
+# import nextSongs as nextSongs
 import datetime
 import sys
 from PyQt4.QtGui import *
 
+nextSongs.read_config()
 st = nextSongs.SongTimer()
 st.read_songs()
 
@@ -61,6 +63,42 @@ def show_todays_songs():
     dialog.verticalLayout.addWidget(dialog.list_popup)
     dialog.verticalLayout.addWidget(exit_btn)
     dialog.exec_()
+
+def show_preferences():
+    dialog = QDialog()
+    def save_prefs():
+        nextSongs.Config.songs_per_day = dialog.settings_spd.value()
+        nextSongs.Config.old_songs_per_day = dialog.settings_ospd.value()
+        nextSongs.Config.middle_old_period = dialog.settings_mop.value()
+        nextSongs.save_config()
+        dialog.accept()
+    dialog.settings_spd = QSpinBox()
+    dialog.settings_spd.setMinimum(1)
+    dialog.settings_spd.setSingleStep(1);
+    dialog.settings_spd.setValue(nextSongs.Config.songs_per_day)
+    dialog.settings_ospd = QSpinBox()
+    dialog.settings_ospd.setMinimum(0)
+    dialog.settings_ospd.setSingleStep(1);
+    dialog.settings_ospd.setValue(nextSongs.Config.old_songs_per_day)
+    dialog.settings_mop = QSpinBox()
+    dialog.settings_mop.setMinimum(1)
+    dialog.settings_mop.setSingleStep(1);
+    dialog.settings_mop.setValue(nextSongs.Config.middle_old_period)
+    dialog.btn_save = QPushButton('Save')
+    dialog.btn_save.clicked.connect(save_prefs)
+    dialog.btn_exit = QPushButton('Cancel')
+    dialog.btn_exit.clicked.connect(dialog.accept)
+    dialog.verticalLayout = QVBoxLayout(dialog)
+    dialog.verticalLayout.addWidget(QLabel("Songs per day: "))
+    dialog.verticalLayout.addWidget(dialog.settings_spd)
+    dialog.verticalLayout.addWidget(QLabel("Old songs per day: "))
+    dialog.verticalLayout.addWidget(dialog.settings_ospd)
+    dialog.verticalLayout.addWidget(QLabel("Interval to repeat all middle old songs: "))
+    dialog.verticalLayout.addWidget(dialog.settings_mop)
+    dialog.verticalLayout.addWidget(dialog.btn_save)
+    dialog.verticalLayout.addWidget(dialog.btn_exit)
+    dialog.exec_()
+
 
 # Create a Qt application
 app = QApplication(sys.argv)
@@ -137,8 +175,13 @@ del_btn.resize(del_btn.sizeHint())
 
 # Create exit button
 exit_btn = QPushButton('Exit')
-exit_btn.clicked.connect(exit)
+exit_btn.clicked.connect(sys.exit)
 exit_btn.resize(exit_btn.sizeHint())
+
+# Create open_prefs button
+open_prefs_btn = QPushButton('Open Preferences')
+open_prefs_btn.clicked.connect(show_preferences)
+open_prefs_btn.resize(open_prefs_btn.sizeHint())
 
 # fit column to content size
 list.resizeColumnsToContents()
@@ -148,8 +191,14 @@ layout.addWidget(todays_songs_btn)
 layout.addWidget(add_btn)
 layout.addWidget(del_btn)
 layout.addWidget(list)
+layout.addWidget(open_prefs_btn)
 layout.addWidget(exit_btn)
 # Show the window and run the app
 widget.setLayout(layout)
-widget.show()
-app.exec_()
+
+def main():
+    widget.show()
+    app.exec_()
+
+if __name__ == "__main__":
+    main()

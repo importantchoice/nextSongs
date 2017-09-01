@@ -1,0 +1,3 @@
+[console_scripts]
+nextSongs = nextSongs.ui:main
+
