@@ -4,6 +4,7 @@ import datetime
 import sys
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QVariant
 
 nextSongs.Config.read_config()
 st = nextSongs.SongTimer()
@@ -27,6 +28,46 @@ class QSongWeight(QStandardItem):
         self.song = song
         self.setText(str(song.weight))
 
+class QSongLocation(QStandardItem):
+    def __init__(self, song):
+        super().__init__()
+        self.song = song
+        self.setText(str(song.location))
+
+class QSongForceMiddleCat(QStandardItem):
+    def __init__(self, song):
+        super().__init__()
+        self.song = song
+        self.setEditable(False)
+        self.setCheckable(True)
+        if song.enforce_middle_aged_category:
+            self.setCheckState(2)
+        else:
+            self.setCheckState(0)
+
+class QSongCategory(QStandardItem):
+    def __init__(self,song):
+        super().__init__()
+        self.song = song
+        self.setEditable(False)
+        # self.setCheckable(False)
+        self.update_text()
+
+    def update_text(self):
+        self.setText(self.text())
+
+    def text(self):
+        if self.song.current:
+            return "Current"
+        for i in range(0, nextSongs.Config.middle_old_period):
+            if self.song in st.get_middle_aged_songs_by_slot(i):
+                return "Middle; Day " + str(i + 1)
+        else:
+            return "Old"
+
+
+
+
 
 def show_todays_songs():
     todays_songs = Todays_Songs()
@@ -35,13 +76,17 @@ def show_todays_songs():
 class Todays_Songs(QDialog):
     def __init__(self):
         super().__init__()
-        list_popup = QListView()
+        list_popup = QTableView()
         list_popup.setWindowTitle('Todays songs')
         list_popup.setMinimumSize(600, 400)
         model = QStandardItemModel(list_popup)
+        model.setHorizontalHeaderLabels(['Title', 'Location'])
         for song in st.get_songs_for_date(datetime.datetime.now()):
             item = QSong(song)
-            model.appendRow(item)
+            item.setEditable(False)
+            item2 = QSongLocation(song)
+            item2.setEditable(False)
+            model.appendRow([item, item2])
         list_popup.setModel(model)
 
         exit_btn = QPushButton('Exit')
@@ -51,9 +96,6 @@ class Todays_Songs(QDialog):
         self.verticalLayout.addWidget(self.list_popup)
         self.verticalLayout.addWidget(exit_btn)
 
-def show_preferences():
-    prefs = Preferences()
-    prefs.exec_()
 
 class Preferences(QDialog):
     def __init__(self):
@@ -107,9 +149,9 @@ class MainWindow(QWidget):
      
         # Create an empty model for the list's data
         self.model = QStandardItemModel(self.table)
-        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight'])
+        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight', 'Location', 'In Middle Aged', 'Category'])
         self.model.itemChanged.connect(self.on_item_changed)
-        self.model.setColumnCount(3)
+        self.model.setColumnCount(6)
 
         # Fill table with data
         for song in st.songs:
@@ -122,7 +164,7 @@ class MainWindow(QWidget):
                 item.setCheckState(2)
          
             # Add the item to the model
-            self.model.appendRow([item, QSongDate(song), QSongWeight(song)])
+            self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), QSongForceMiddleCat(song), QSongCategory(song)])
          
         # Apply the model to the list view
         self.table.setModel(self.model)
@@ -149,7 +191,7 @@ class MainWindow(QWidget):
 
         # Create open_prefs button
         open_prefs_btn = QPushButton('Open Preferences')
-        open_prefs_btn.clicked.connect(show_preferences)
+        open_prefs_btn.clicked.connect(self.show_preferences)
         open_prefs_btn.resize(open_prefs_btn.sizeHint())
 
         # fit column to content size
@@ -175,16 +217,19 @@ class MainWindow(QWidget):
             self.model.removeRow(i.row())
         self.table.resizeColumnsToContents()
         st.write_songs()
+        self.update_categories()
 
     def add_song(self):
         song = nextSongs.Song("Song Title", datetime.datetime.now().date())
         st.songs.append(song)
         item = QSong(song)
+        item_middle_aged_cb = QSongForceMiddleCat(song)
+        item_middle_aged_cb.setCheckable(True)
 
         item.setCheckable(True)
         if song.current:
             item.setCheckState(2)
-        self.model.appendRow([item, QSongDate(song), QSongWeight(song)])
+        self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), item_middle_aged_cb, QSongCategory(song)])
         self.table.resizeColumnsToContents()
         # Scroll table down, select inserted column and go into edit mode for first cell
         self.table.scrollToBottom()
@@ -192,6 +237,7 @@ class MainWindow(QWidget):
         self.table.edit(self.table.selectedIndexes()[0])
         # save songs
         st.write_songs()
+        self.update_categories()
 
     def on_item_changed(self, item):
         """
@@ -219,7 +265,26 @@ class MainWindow(QWidget):
                 item.song.weight = new_weight
             except:
                 item.setText(str(item.song.weight))
+        elif isinstance(item, QSongLocation):
+            item.song.location = item.text()
+        elif isinstance(item, QSongForceMiddleCat):
+            item.song.enforce_middle_aged_category = item.checkState()
         st.write_songs()
+
+        # update categories
+        self.update_categories()
+
+    def update_categories(self):
+        for i in range(self.model.rowCount()):
+            for j in range(self.model.columnCount()):
+                cell = self.model.itemFromIndex(self.model.index(i,j))
+                if isinstance(cell, QSongCategory):
+                    cell.update_text()
+
+    def show_preferences(self):
+        prefs = Preferences()
+        prefs.exec_()
+        self.update_categories()
 
 def main():
     widget = MainWindow()
