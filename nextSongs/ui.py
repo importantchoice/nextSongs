@@ -21,6 +21,12 @@ class QSongDate(QStandardItem):
         self.song = song
         self.setText(str(song.date))
 
+class QSongWeight(QStandardItem):
+    def __init__(self, song):
+        super().__init__()
+        self.song = song
+        self.setText(str(song.weight))
+
 
 def show_todays_songs():
     todays_songs = Todays_Songs()
@@ -34,7 +40,6 @@ class Todays_Songs(QDialog):
         list_popup.setMinimumSize(600, 400)
         model = QStandardItemModel(list_popup)
         for song in st.get_songs_for_date(datetime.datetime.now()):
-            print(song.title)
             item = QSong(song)
             model.appendRow(item)
         list_popup.setModel(model)
@@ -89,7 +94,6 @@ class Preferences(QDialog):
 
 # Create a Qt application
 app = QApplication(sys.argv)
-widget = QWidget()
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -103,16 +107,14 @@ class MainWindow(QWidget):
      
         # Create an empty model for the list's data
         self.model = QStandardItemModel(self.table)
-        self.model.setHorizontalHeaderLabels(['Title', 'Date'])
+        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight'])
         self.model.itemChanged.connect(self.on_item_changed)
-        self.model.setColumnCount(2)
+        self.model.setColumnCount(3)
 
         # Fill table with data
         for song in st.songs:
             # create an item with a caption
             item = QSong(song)
-            item.setColumnCount(2)
-            item.appendColumn([QSongDate(song)])
          
             # add a checkbox to it
             item.setCheckable(True)
@@ -120,7 +122,7 @@ class MainWindow(QWidget):
                 item.setCheckState(2)
          
             # Add the item to the model
-            self.model.appendRow([item, QSongDate(song)])
+            self.model.appendRow([item, QSongDate(song), QSongWeight(song)])
          
         # Apply the model to the list view
         self.table.setModel(self.model)
@@ -178,12 +180,14 @@ class MainWindow(QWidget):
         song = nextSongs.Song("Song Title", datetime.datetime.now().date())
         st.songs.append(song)
         item = QSong(song)
-        item.setColumnCount(2)
+        item.setColumnCount(3)
         item.appendColumn([QSongDate(song)])
+        item.appendColumn([QSongWeight(song)])
+
         item.setCheckable(True)
         if song.current:
             item.setCheckState(2)
-        self.model.appendRow([item, QSongDate(song)])
+        self.model.appendRow([item, QSongDate(song), QSongWeight(song)])
         self.table.resizeColumnsToContents()
         st.write_songs()
 
@@ -207,6 +211,12 @@ class MainWindow(QWidget):
 
             except:
                 item.setText(str(item.song.date))
+        elif isinstance(item, QSongWeight):
+            try:
+                new_weight = int(item.text())
+                item.song.weight = new_weight
+            except:
+                item.setText(str(item.song.weight))
         st.write_songs()
 
 def main():

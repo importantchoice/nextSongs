@@ -57,6 +57,7 @@ class Song:
     def __init__(self, title, date, current=False):
         self.title = title
         self.date = date
+        self.weight = 1
         self.current = current
 
 def get_test_songs():
@@ -88,7 +89,7 @@ class SongTimer:
     def write_songs(self):
         data = {'songs': []}
         for song in self.songs:
-            data["songs"].append({'title': song.title, 'date': song.date.toordinal(), 'current': song.current})
+            data["songs"].append({'title': song.title, 'date': song.date.toordinal(), 'weight': song.weight, 'current': song.current})
 
         if not os.path.exists(os.path.dirname(data_filename)):
             try:
@@ -107,6 +108,7 @@ class SongTimer:
             data = json.load(data_file)
         for song in data['songs']:
             s = Song(song['title'], datetime.date.fromordinal(song['date']), song['current'])
+            s.weight = song['weight']
             self.songs.append(s)
 
     def get_middle_old_songs(self, songs, count):
@@ -133,6 +135,18 @@ class SongTimer:
             old_songs.remove(song)
         return old_songs
 
+    def expand_old_songs(self, old_songs):
+        """
+        duplicates songs in a list according to their weight
+        :param old_songs: list of old songs
+        :return: list of songs
+        """
+        expanded_old_songs = []
+        for song in old_songs:
+            for i in range(0, song.weight):
+                expanded_old_songs.append(song)
+        return expanded_old_songs
+
     def get_songs_for_date(self, date):
         songs_today = []
         # sort songs by date
@@ -143,6 +157,7 @@ class SongTimer:
                 raise Exception("More songs marked as current than slots available for songs_per_day")
             if song.current:
                 songs_today.append(song)
+
         # get count of songs in middle old category
         count_of_middle_old_songs = (config.songs_per_day - len(songs_today) - config.old_songs_per_day) * config.middle_old_period
         todays_middle_old_slot = date.timetuple().tm_yday % config.middle_old_period
@@ -156,6 +171,7 @@ class SongTimer:
             if i >= len(middle_old_songs):
                 break
             songs_today.append(middle_old_songs[i])
+
         # add random old songs
         old_songs = self.get_old_songs(songs, count_of_middle_old_songs)
         if config.fill_up_song_list:
@@ -164,7 +180,7 @@ class SongTimer:
             old_songs_count = config.old_songs_per_day
         for i in range(0, old_songs_count):
             try:
-                old_song = random.choice(old_songs)
+                old_song = random.choice(self.expand_old_songs(old_songs))
             except IndexError:
                 print("no old songs left")
                 # break if we dont have any song left
