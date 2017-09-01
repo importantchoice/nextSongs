@@ -129,7 +129,7 @@ class SongTimer:
 
     def get_middle_old_songs(self, songs, count):
         middle_old_songs = []
-        songs = sorted(songs, key=lambda x: x.date)
+        songs = list(reversed(sorted(songs, key=lambda x: x.date)))
         # add enforced middle old songs
         for song in songs:
             if song.enforce_middle_aged_category and not song.current:
@@ -207,7 +207,7 @@ class SongTimer:
     def get_songs_for_date(self, date):
         songs_today = []
         # sort songs by date
-        songs = sorted(self.songs, key=lambda x: x.date)
+        songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
         # append current songs
         songs_today.extend(self.get_current_songs())
 
