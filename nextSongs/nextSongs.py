@@ -173,7 +173,13 @@ class SongTimer:
         return expanded_old_songs
 
     def get_count_of_middle_old_songs_per_day(self):
-        return (config.songs_per_day - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
+        if config.songs_per_day <= len(self.songs):
+            return (config.songs_per_day - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
+        else:
+            # if less songs are available than should be played on a day, use
+            # count of available songs instead of configured daily songs as
+            # base to calculate middle old songs per day
+            return (len(self.songs) - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
 
     def get_middle_aged_songs_by_slot(self, slot):
         songs_today = []
@@ -214,18 +220,6 @@ class SongTimer:
         # get count of songs in middle old category
         todays_middle_old_slot = date.timetuple().tm_yday % config.middle_old_period
         songs_today.extend(self.get_middle_aged_songs_by_slot(todays_middle_old_slot))
-        # count_of_middle_old_songs = (config.songs_per_day - len(songs_today) - config.old_songs_per_day) * config.middle_old_period
-        # todays_middle_old_slot = date.timetuple().tm_yday % config.middle_old_period
-        # if count_of_middle_old_songs <= 0:
-        #     raise Exception("Too many songs marked as current. current songs + old songs dont leave place for any middle old song")
-        # middle_old_songs = self.get_middle_old_songs(songs, count_of_middle_old_songs)
-        # middle_old_songs_per_day = int(count_of_middle_old_songs / config.middle_old_period)
-        # # add middle old songs that are in todays_middle_old_slot
-        # for i in range( middle_old_songs_per_day * todays_middle_old_slot, middle_old_songs_per_day * todays_middle_old_slot + middle_old_songs_per_day ):
-        #     # break if we dont have more middle old songs
-        #     if i >= len(middle_old_songs):
-        #         break
-        #     songs_today.append(middle_old_songs[i])
 
         # add random old songs
         old_songs = self.get_old_songs(songs, self.get_count_of_middle_old_songs_per_day())
@@ -253,7 +247,8 @@ def main():
     print("reading config from", config_filename)
     Config.read_config()
     print("loading data from", data_filename)
-    st = SongTimer(True)
+    st = SongTimer()
+    st.read_songs()
     d = datetime.datetime.now() + relativedelta(days=+0)
     songs_today = st.get_songs_for_date(d)
     print("Today:")
@@ -265,7 +260,7 @@ def main():
     for song in songs_tomorrow:
         print(song.title)
     print("storing config under", config_filename)
-    save_config()
+    Config.save_config()
     print("storing songs under", data_filename)
     st.write_songs()
 

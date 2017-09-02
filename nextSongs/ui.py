@@ -333,7 +333,7 @@ class MainWindow(QMainWindow):
         for i in range(days):
             date = datetime.datetime.now().date() + relativedelta(days=+i)
             table += "<tr><td>" + str(date) + ":</td></tr>"
-            for song in st.get_songs_for_date(datetime.datetime.now().date() + relativedelta(days=+1)):
+            for song in st.get_songs_for_date(datetime.datetime.now().date() + relativedelta(days=+i)):
                 table += "<tr><td></td><td>" + song.location + "<td></td><td></td><td>" + song.title + '</td></tr>'
             # table += '\n'
         return table
