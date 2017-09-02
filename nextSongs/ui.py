@@ -296,7 +296,7 @@ class MainWindow(QMainWindow):
 
         printAct = QAction(QIcon('print.png'), '&Print', self)
         printAct.setShortcut('Ctrl+P')
-        printAct.setStatusTip('Print trainingset')
+        printAct.setStatusTip('Print training set')
         printAct.triggered.connect(self.show_print_dialog)
 
         prefAct = QAction(QIcon('preferences.png'), '&Preferences', self)
@@ -319,7 +319,7 @@ class MainWindow(QMainWindow):
         days = item
         doc = QTextDocument()
         cursor = QTextCursor(doc)
-        cursor.insertHtml("<h1>Trainingset: " + str(datetime.datetime.now().date()) + " - " + str(datetime.datetime.now().date() + relativedelta(days=+days-1)) + "</h1><p>")
+        cursor.insertHtml("<h1>Training Set: " + str(datetime.datetime.now().date()) + " - " + str(datetime.datetime.now().date() + relativedelta(days=+days-1)) + "</h1><p>")
         cursor.insertHtml(self.generate_printable_html_table(days))
         printer = QPrinter()
         def handlePaintRequest(printer):
