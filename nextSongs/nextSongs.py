@@ -66,6 +66,9 @@ class Song:
         self.location = ""
         self.weight = 1
 
+    def __repr__(self):
+        return "<Song(Title: " + self.title + ")>"
+
 def get_test_songs():
     songs = []
     songs.append(Song("Rock me mama", datetime.date(2017, 8, 5), True))
@@ -127,9 +130,10 @@ class SongTimer:
                 s.enforce_middle_aged_category = song['enforce_middle_old']
             self.songs.append(s)
 
-    def get_middle_old_songs(self, songs, count):
+    def get_middle_old_songs(self):
+        count = self.get_count_of_middle_old_songs()
         middle_old_songs = []
-        songs = list(reversed(sorted(songs, key=lambda x: x.date)))
+        songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
         # add enforced middle old songs
         for song in songs:
             if song.enforce_middle_aged_category and not song.current:
@@ -146,18 +150,11 @@ class SongTimer:
 
     def get_old_songs(self, songs, middle_old_songs_count):
         old_songs = []
-        middle_old_songs = self.get_middle_old_songs(songs, middle_old_songs_count)
+        middle_old_songs = self.get_middle_old_songs()
         # add all songs that are not in 'current' category
         for song in songs:
-            if not song.current:
+            if not song.current and song not in middle_old_songs:
                 old_songs.append(song)
-        # remove all songs that are in 'middle old' category
-        for song in middle_old_songs:
-            # try:
-            #     old_songs.remove(song)
-            # except ValueError:
-            #     pass
-            old_songs.remove(song)
         return old_songs
 
     def expand_old_songs(self, old_songs):
@@ -172,7 +169,7 @@ class SongTimer:
                 expanded_old_songs.append(song)
         return expanded_old_songs
 
-    def get_count_of_middle_old_songs_per_day(self):
+    def get_count_of_middle_old_songs(self):
         if config.songs_per_day <= len(self.songs):
             return (config.songs_per_day - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
         else:
@@ -184,12 +181,12 @@ class SongTimer:
     def get_middle_aged_songs_by_slot(self, slot):
         songs_today = []
         songs = self.songs
-        count_of_middle_old_songs = self.get_count_of_middle_old_songs_per_day()
+        count_of_middle_old_songs = self.get_count_of_middle_old_songs()
         todays_middle_old_slot = slot
         if count_of_middle_old_songs <= 0:
             # raise Exception("Too many songs marked as current. current songs + old songs dont leave place for any middle old song")
             logger.warning("Too many songs marked as current. current songs + old songs dont leave place for any middle old song")
-        middle_old_songs = self.get_middle_old_songs(songs, count_of_middle_old_songs)
+        middle_old_songs = self.get_middle_old_songs()
         middle_old_songs_per_day = int(count_of_middle_old_songs / config.middle_old_period)
         # add middle old songs that are in todays_middle_old_slot
         for i in range( middle_old_songs_per_day * todays_middle_old_slot, middle_old_songs_per_day * todays_middle_old_slot + middle_old_songs_per_day ):
@@ -222,7 +219,7 @@ class SongTimer:
         songs_today.extend(self.get_middle_aged_songs_by_slot(todays_middle_old_slot))
 
         # add random old songs
-        old_songs = self.get_old_songs(songs, self.get_count_of_middle_old_songs_per_day())
+        old_songs = self.get_old_songs(songs, self.get_count_of_middle_old_songs())
         if config.fill_up_song_list:
             old_songs_count = config.songs_per_day - len(songs_today)
         else:
