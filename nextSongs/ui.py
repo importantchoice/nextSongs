@@ -329,13 +329,18 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def generate_printable_html_table(self, days):
+        exclude_old_songs = []
         table = "<table style='padding-right: 10px;'>'"
         for i in range(days):
             date = datetime.datetime.now().date() + relativedelta(days=+i)
             table += "<tr><td>" + str(date) + ":</td></tr>"
-            for song in st.get_songs_for_date(datetime.datetime.now().date() + relativedelta(days=+i)):
+            songs_for_day =  st.get_songs_for_date(datetime.datetime.now().date() + relativedelta(days=+i), exclude_old_songs)
+            exclude_old_songs.extend(songs_for_day)
+            # reset exclude_old_songs for next day
+            if ((i * nextSongs.Config.old_songs_per_day) % len(st.get_old_songs())) + 1 >= len(st.get_old_songs()):
+                exclude_old_songs = []
+            for song in songs_for_day:
                 table += "<tr><td></td><td>" + song.location + "<td></td><td></td><td>" + song.title + '</td></tr>'
-            # table += '\n'
         return table
 
     def show_preferences(self):

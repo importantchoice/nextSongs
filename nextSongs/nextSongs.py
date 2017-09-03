@@ -148,12 +148,14 @@ class SongTimer:
             middle_old_songs.append(song)
         return middle_old_songs
 
-    def get_old_songs(self, songs, middle_old_songs_count):
+    def get_old_songs(self, exclude_songs=[]):
+        songs = self.songs
+        middle_old_songs_count = self.get_count_of_middle_old_songs()
         old_songs = []
         middle_old_songs = self.get_middle_old_songs()
         # add all songs that are not in 'current' category
         for song in songs:
-            if not song.current and song not in middle_old_songs:
+            if not song.current and song not in middle_old_songs and song not in exclude_songs:
                 old_songs.append(song)
         return old_songs
 
@@ -207,7 +209,13 @@ class SongTimer:
                 songs_today.append(song)
         return songs_today
 
-    def get_songs_for_date(self, date):
+    def get_songs_for_date(self, date, exclude_songs=[]):
+        """
+        generate list of songs for a given date
+        :param date: datetime.date object representing the day, the list is generated for
+        :param exclude_songs: list of Song. Songs that will be excluded while generating old_songs list
+        :return: list of song
+        """
         songs_today = []
         # sort songs by date
         songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
@@ -219,7 +227,12 @@ class SongTimer:
         songs_today.extend(self.get_middle_aged_songs_by_slot(todays_middle_old_slot))
 
         # add random old songs
-        old_songs = self.get_old_songs(songs, self.get_count_of_middle_old_songs())
+        # get old songs, excluding exclude_songs
+        old_songs = self.get_old_songs(exclude_songs)
+        # if old_song list is smaller than old_songs_per_day get old_songs without exluding any songs
+        if len(old_songs) < config.old_songs_per_day:
+            old_songs = self.get_old_songs()
+
         if config.fill_up_song_list:
             old_songs_count = config.songs_per_day - len(songs_today)
         else:
