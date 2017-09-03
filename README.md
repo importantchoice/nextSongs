@@ -2,6 +2,8 @@
 instrument. Therefor it uses a category based approach, you might know from
 vocabulary trainer.
 
+![nextSongs UI Screenshot](https://raw.githubusercontent.com/importantchoice/nextSongs/master/Screenshots/nextSongs.png)
+
 # The idea
 
 All songs are divided into three categories: `current`, `middle old` and `old`.
