@@ -1,11 +1,13 @@
-`nextSongs` is a simple application to generate a list of songs to practice e.g. on an instrument.
+`nextSongs` shows the next set of songs, which you can practice on your
+instrument. Therefor it uses a category based approach, you might know from
+vocabulary trainer.
 
 # The idea
 
 All songs are divided into three categories: `current`, `middle old` and `old`.
 
 * Songs in the `current` category will appear every day.
-* Songs in the `middle old` category will appear every n-th day. This period can be configured.
+* Songs in the `middle old` category will appear every n-th day. This interval can be configured.
 * Songs in the `old` category will appear randomly
 
 The count of songs in `middle old` category will be dynamically calculated.
