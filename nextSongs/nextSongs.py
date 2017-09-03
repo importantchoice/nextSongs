@@ -1,15 +1,18 @@
-import datetime
-import logging
-import json
-import os
 from appdirs import *
 from dateutil.relativedelta import relativedelta
+import datetime
+import json
+import logging
+import os
 import random
 
 
 logger = logging.getLogger('nextSongs')
 
 class Config:
+    """
+    static class that holds the configuration
+    """
     songs_per_day = 10     # count of songs that will be played per day
     old_songs_per_day = 2  # count of old songs that will be played per day
     middle_old_period = 1  # count of middle old songs that will be played per day
@@ -21,6 +24,9 @@ class Config:
 
     @staticmethod
     def read_config():
+        """
+        reads configuration from config file
+        """
         if not os.path.isfile(config_filename):
             Config.save_config()
             raise Exception("config file does not exist. try to rerun the program.")
@@ -33,6 +39,9 @@ class Config:
 
     @staticmethod
     def save_config():
+        """
+        saves configuration to config file
+        """
         config = {}
         config["songs_per_day"] = Config.songs_per_day
         config["old_songs_per_day"] = Config.old_songs_per_day
@@ -59,6 +68,9 @@ data_filename = os.path.join(user_data_dir(appname, appauthor), 'data.json')
 
 
 class Song:
+    """
+    Object that represents a song in the song list
+    """
     def __init__(self, title, date, current=False, middle_old=False):
         self.title = title
         self.date = date
@@ -71,6 +83,10 @@ class Song:
         return "<Song(Title: " + self.title + ")>"
 
 def get_test_songs():
+    """
+    function to generate test songs
+    :return: list-of-Song
+    """
     songs = []
     songs.append(Song("Rock me mama", datetime.date(2017, 8, 5), True))
     songs.append(Song("Test 1", datetime.date(2017, 8, 5)))
@@ -91,12 +107,18 @@ def get_test_songs():
     return songs
 
 class SongTimer:
+    """
+    object that holds the list of songs and provides methods to generate lists of songs to practice
+    """
     def __init__(self, add_test_songs=False):
         self.songs = []
         if add_test_songs:
             self.songs.extend(get_test_songs())
 
     def write_songs(self):
+        """
+        save songs into file
+        """
         data = {'songs': []}
         for song in self.songs:
             data["songs"].append({'title': song.title, 
@@ -117,6 +139,9 @@ class SongTimer:
             json.dump(data, f)
 
     def read_songs(self):
+        """
+        read songs from file
+        """
         if not os.path.isfile(data_filename):
             self.write_songs()
             raise Exception("config file does not exist. try to rerun this program")
@@ -132,6 +157,11 @@ class SongTimer:
             self.songs.append(s)
 
     def get_middle_old_songs(self, date=None):
+        """
+        generates a list of middle old songs
+        :param date: the date the middle old song list will be generated for. if empty, the list won't be shuffled
+        :return: list-of-Songs
+        """
         count = self.get_count_of_middle_old_songs()
         middle_old_songs = []
         songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
@@ -161,6 +191,11 @@ class SongTimer:
         return middle_old_songs
 
     def get_old_songs(self, exclude_songs=[]):
+        """
+        generates a list of old songs
+        :param exclude_songs: list-of-Songs that will be excluded from the generated list
+        :return: list-of-Songs
+        """
         songs = self.songs
         middle_old_songs_count = self.get_count_of_middle_old_songs()
         old_songs = []
@@ -173,9 +208,9 @@ class SongTimer:
 
     def expand_old_songs(self, old_songs):
         """
-        duplicates songs in a list according to their weight
+        duplicates songs in a list according to their weight, so that songs with a higher weight will be chosen more often
         :param old_songs: list of old songs
-        :return: list of songs
+        :return: list-of-Songs
         """
         expanded_old_songs = []
         for song in old_songs:
@@ -184,6 +219,10 @@ class SongTimer:
         return expanded_old_songs
 
     def get_count_of_middle_old_songs(self):
+        """
+        calculates the count of songs that will be in the list of middle old songs
+        :return: int
+        """
         if config.songs_per_day <= len(self.songs):
             return (config.songs_per_day - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
         else:
@@ -192,7 +231,13 @@ class SongTimer:
             # base to calculate middle old songs per day
             return (len(self.songs) - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
 
-    def get_middle_aged_songs_by_slot(self, slot, date=None):
+    def get_middle_old_songs_by_slot(self, slot, date=None):
+        """
+        generates the list of middle old songs for a slot
+        :param slot: int; the day in the middle old interval
+        :param date: the date, this list will be generated for. If None the list of middle old songs won't be shuffled
+        :return: list-of-Songs
+        """
         songs_today = []
         songs = self.songs
         count_of_middle_old_songs = self.get_count_of_middle_old_songs()
@@ -211,6 +256,10 @@ class SongTimer:
         return songs_today
 
     def get_current_songs(self):
+        """
+        generates a list of current songs
+        :return: list-of-Songs
+        """
         songs = self.songs
         songs_today = []
         for song in songs:
@@ -236,7 +285,7 @@ class SongTimer:
 
         # get count of songs in middle old category
         todays_middle_old_slot = date.timetuple().tm_yday % config.middle_old_period
-        songs_today.extend(self.get_middle_aged_songs_by_slot(todays_middle_old_slot, date))
+        songs_today.extend(self.get_middle_old_songs_by_slot(todays_middle_old_slot, date))
 
         # add random old songs
         # get old songs, excluding exclude_songs
@@ -288,5 +337,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-

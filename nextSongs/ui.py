@@ -1,42 +1,57 @@
-import nextSongs.nextSongs as nextSongs
-from dateutil.relativedelta import relativedelta
-import datetime
-import sys
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QVariant
+from PyQt5.QtGui import *
 from PyQt5.QtPrintSupport import *
+from PyQt5.QtWidgets import *
+from dateutil.relativedelta import relativedelta
 import PyQt5.Qt as Qt
+import datetime
+import nextSongs.nextSongs as nextSongs
+import sys
 
 nextSongs.Config.read_config()
 st = nextSongs.SongTimer()
 st.read_songs()
 
 class QSong(QStandardItem):
+    """
+    QStandardItem that represents the Song title in the Song Table
+    """
     def __init__(self, song):
         super().__init__()
         self.song = song
         self.setText(song.title)
 
 class QSongDate(QStandardItem):
+    """
+    QStandardItem that represents the Song date in the Song Table
+    """
     def __init__(self, song):
         super().__init__()
         self.song = song
         self.setText(str(song.date))
 
 class QSongWeight(QStandardItem):
+    """
+    QStandardItem that represents the Song weight in the Song Table
+    """
     def __init__(self, song):
         super().__init__()
         self.song = song
         self.setText(str(song.weight))
 
 class QSongLocation(QStandardItem):
+    """
+    QStandardItem that represents the Song location in the Song Table
+    """
     def __init__(self, song):
         super().__init__()
         self.song = song
         self.setText(str(song.location))
 
 class QSongForceMiddleCat(QStandardItem):
+    """
+    Checkbox that enables/disables enforce_middle_old_category for a song in the Song Table
+    """
     def __init__(self, song):
         super().__init__()
         self.song = song
@@ -48,6 +63,9 @@ class QSongForceMiddleCat(QStandardItem):
             self.setCheckState(0)
 
 class QSongCategory(QStandardItem):
+    """
+    QStandardItem that shows the category of a song in the song table
+    """
     def __init__(self,song):
         super().__init__()
         self.song = song
@@ -62,7 +80,7 @@ class QSongCategory(QStandardItem):
         if self.song.current:
             return "Current"
         for i in range(0, nextSongs.Config.middle_old_period):
-            if self.song in st.get_middle_aged_songs_by_slot(i):
+            if self.song in st.get_middle_old_songs_by_slot(i):
                 return "Middle; Day " + str(i + 1)
         else:
             return "Old"
@@ -72,10 +90,16 @@ class QSongCategory(QStandardItem):
 
 
 def show_todays_songs():
+    """
+    open Todays_Songs dialog
+    """
     todays_songs = Todays_Songs()
     todays_songs.exec_()
 
 class Todays_Songs(QDialog):
+    """
+    This dialog shows a list of songs to practice this day
+    """
     def __init__(self):
         super().__init__()
         list_popup = QTableView()
@@ -101,6 +125,9 @@ class Todays_Songs(QDialog):
 
 
 class Preferences(QDialog):
+    """
+    Preferences Dialog
+    """
     def __init__(self):
         super().__init__()
         self.settings_spd = QSpinBox()
@@ -130,6 +157,9 @@ class Preferences(QDialog):
         self.verticalLayout.addWidget(self.btn_exit)
 
     def save_prefs(self, i):
+        """
+        apply configured prefereces and save them to config file
+        """
         nextSongs.Config.songs_per_day = self.settings_spd.value()
         nextSongs.Config.old_songs_per_day = self.settings_ospd.value()
         nextSongs.Config.middle_old_period = self.settings_mop.value()
@@ -141,6 +171,9 @@ class Preferences(QDialog):
 app = QApplication(sys.argv)
 
 class ListWindow(QWidget):
+    """
+    Window that holds the song list and the buttons to add, remove a song and show todays song
+    """
     def __init__(self):
         super().__init__()
         layout = QGridLayout()
@@ -200,6 +233,9 @@ class ListWindow(QWidget):
         self.setLayout(layout)
 
     def delete_selected_song(self):
+        """
+        deletes the first selected song
+        """
         if len(self.table.selectedIndexes()) == 0:
             return
         indices = [self.table.selectedIndexes()[0]]
@@ -212,6 +248,9 @@ class ListWindow(QWidget):
         self.update_categories()
 
     def add_song(self):
+        """
+        Adds a new song element to the table
+        """
         song = nextSongs.Song("Song Title", datetime.datetime.now().date())
         st.songs.append(song)
         item = QSong(song)
@@ -233,13 +272,14 @@ class ListWindow(QWidget):
 
     def on_item_changed(self, item):
         """
-        if 'current' status changed, apply it also to its song item
-        also change date if it was changed
+        callback function to update song items according to the change that happened
         """
         if isinstance(item, QSong):
+            # change song title and its current-state
             item.song.title = item.text()
             item.song.current = item.checkState()
         elif isinstance(item, QSongDate):
+            # try to change date of the song. if it fails, reset to old date
             try:
                 d = item.text().split('-')
                 year = int(d[0])
@@ -252,21 +292,28 @@ class ListWindow(QWidget):
             except:
                 item.setText(str(item.song.date))
         elif isinstance(item, QSongWeight):
+            # try to change weight of a song. otherwise reset to old weight
             try:
                 new_weight = int(item.text())
                 item.song.weight = new_weight
             except:
                 item.setText(str(item.song.weight))
         elif isinstance(item, QSongLocation):
+            # change location of a song
             item.song.location = item.text()
         elif isinstance(item, QSongForceMiddleCat):
+            # change enforce_middle_aged_category of a song
             item.song.enforce_middle_aged_category = item.checkState()
+        # save changes to file
         st.write_songs()
 
         # update categories
         self.update_categories()
 
     def update_categories(self):
+        """
+        updates category text of all songs in the table
+        """
         for i in range(self.model.rowCount()):
             for j in range(self.model.columnCount()):
                 cell = self.model.itemFromIndex(self.model.index(i,j))
@@ -288,22 +335,24 @@ class MainWindow(QMainWindow):
         self.list = ListWindow()
         self.setCentralWidget(self.list)
 
-        # Menu
+        # Exit Action
         exitAct = QAction(QIcon('exit.png'), '&Exit', self)
         exitAct.setShortcut('Ctrl+Q')
         exitAct.setStatusTip('Exit application')
         exitAct.triggered.connect(qApp.quit)
 
+        # Print Action
         printAct = QAction(QIcon('print.png'), '&Print', self)
         printAct.setShortcut('Ctrl+P')
         printAct.setStatusTip('Print training set')
         printAct.triggered.connect(self.show_print_dialog)
 
+        # Show Preferences Action
         prefAct = QAction(QIcon('preferences.png'), '&Preferences', self)
         prefAct.setShortcut('Ctrl+S')
         prefAct.triggered.connect(self.show_preferences)
-        
 
+        # Menu
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(prefAct)
@@ -313,6 +362,11 @@ class MainWindow(QMainWindow):
         self.show()
 
     def show_print_dialog(self):
+        """
+        opens a dialog to ask for how many days we want to print training sets.
+        then generates the content that will be printed.
+        Finally opens the dialog to print this content
+        """
         item, ok = QInputDialog.getInt(self, "Days to print", "How many days should be printed?", 7)
         if not item or not ok:
             return
@@ -329,6 +383,10 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def generate_printable_html_table(self, days):
+        """
+        generates the html table that will be printed.
+        :param days: int; for how many days shall a traing set be generated
+        """
         exclude_old_songs = []
         table = "<table style='padding-right: 10px;'>'"
         for i in range(days):
@@ -345,6 +403,9 @@ class MainWindow(QMainWindow):
         return table
 
     def show_preferences(self):
+        """
+        opens preferences dialog and updates category texts in the table afterwards
+        """
         prefs = Preferences()
         prefs.exec_()
         self.list.update_categories()
