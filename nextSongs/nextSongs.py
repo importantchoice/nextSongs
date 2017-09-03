@@ -14,6 +14,7 @@ class Config:
     old_songs_per_day = 2  # count of old songs that will be played per day
     middle_old_period = 1  # count of middle old songs that will be played per day
     fill_up_song_list = False # fill song list until the songs_per_day count is reached
+    shuffle_middle_old = True # wheather to shuffle middle old song list or not
 
     def __inti__(self):
         pass
@@ -130,7 +131,7 @@ class SongTimer:
                 s.enforce_middle_aged_category = song['enforce_middle_old']
             self.songs.append(s)
 
-    def get_middle_old_songs(self):
+    def get_middle_old_songs(self, date=None):
         count = self.get_count_of_middle_old_songs()
         middle_old_songs = []
         songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
@@ -148,6 +149,15 @@ class SongTimer:
             if len(middle_old_songs) >= count:
                 break
             middle_old_songs.append(song)
+
+        # shuffle list if option is enabled
+        if Config.shuffle_middle_old and date is not None:
+            seed_date = date.timetuple().tm_yday - date.timetuple().tm_yday % Config.middle_old_period
+            oldRandomState = random.getstate()
+            random.seed(seed_date)
+            random.shuffle(middle_old_songs)
+            random.setstate(oldRandomState)
+
         return middle_old_songs
 
     def get_old_songs(self, exclude_songs=[]):
@@ -182,7 +192,7 @@ class SongTimer:
             # base to calculate middle old songs per day
             return (len(self.songs) - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
 
-    def get_middle_aged_songs_by_slot(self, slot):
+    def get_middle_aged_songs_by_slot(self, slot, date=None):
         songs_today = []
         songs = self.songs
         count_of_middle_old_songs = self.get_count_of_middle_old_songs()
@@ -190,7 +200,7 @@ class SongTimer:
         if count_of_middle_old_songs <= 0:
             # raise Exception("Too many songs marked as current. current songs + old songs dont leave place for any middle old song")
             logger.warning("Too many songs marked as current. current songs + old songs dont leave place for any middle old song")
-        middle_old_songs = self.get_middle_old_songs()
+        middle_old_songs = self.get_middle_old_songs(date)
         middle_old_songs_per_day = int(count_of_middle_old_songs / config.middle_old_period)
         # add middle old songs that are in todays_middle_old_slot
         for i in range( middle_old_songs_per_day * todays_middle_old_slot, middle_old_songs_per_day * todays_middle_old_slot + middle_old_songs_per_day ):
@@ -226,7 +236,7 @@ class SongTimer:
 
         # get count of songs in middle old category
         todays_middle_old_slot = date.timetuple().tm_yday % config.middle_old_period
-        songs_today.extend(self.get_middle_aged_songs_by_slot(todays_middle_old_slot))
+        songs_today.extend(self.get_middle_aged_songs_by_slot(todays_middle_old_slot, date))
 
         # add random old songs
         # get old songs, excluding exclude_songs
