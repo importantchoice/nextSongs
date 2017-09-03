@@ -136,6 +136,8 @@ class SongTimer:
         songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
         # add enforced middle old songs
         for song in songs:
+            if len(middle_old_songs) >= count:
+                break
             if song.enforce_middle_aged_category and not song.current:
                 middle_old_songs.append(song)
 

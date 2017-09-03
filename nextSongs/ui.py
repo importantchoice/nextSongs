@@ -337,8 +337,11 @@ class MainWindow(QMainWindow):
             songs_for_day =  st.get_songs_for_date(datetime.datetime.now().date() + relativedelta(days=+i), exclude_old_songs)
             exclude_old_songs.extend(songs_for_day)
             # reset exclude_old_songs for next day
-            if ((i * nextSongs.Config.old_songs_per_day) % len(st.get_old_songs())) + 1 >= len(st.get_old_songs()):
+            if ((i * nextSongs.Config.old_songs_per_day) % (len(st.get_old_songs()) + 1 )) + 1 >= len(st.get_old_songs()):
                 exclude_old_songs = []
+                print("resetting for day " + str(i + 1), len(st.get_old_songs()))
+            else:
+                print("Not resetting for day" + str(i + 1), len(st.get_old_songs()))
             for song in songs_for_day:
                 table += "<tr><td></td><td>" + song.location + "<td></td><td></td><td>" + song.title + '</td></tr>'
         return table
