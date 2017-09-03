@@ -329,11 +329,17 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.initUI()
 
+    def get_icon_path(self):
+        try:
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.dirname(__file__)
+        return os.path.join(base_path, 'icons', 'icon.png')
+
     def initUI(self):
         self.setGeometry(300, 300, 250, 150)
         self.setWindowTitle('nextSongs')
-        icon = os.path.join(os.path.dirname(__file__), 'icons', 'icon.png')
-        self.setWindowIcon(QIcon(icon))
+        self.setWindowIcon(QIcon(self.get_icon_path()))
 
         self.list = ListWindow()
         self.setCentralWidget(self.list)
