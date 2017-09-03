@@ -14,7 +14,15 @@ The count of songs in `middle old` category will be dynamically calculated.
 
 # Installation
 
+## Using the standalone executable
+
+Simply download the latest executable for your operating system from the [Releases Page](https://github.com/importantchoice/nextSongs/releases) and execute it.
+
+## Installation from source
+
 ```
+$ git clone https://github.com/importantchoice/nextSongs
+$ cd nextSongs
 $ pip install -r requirements.txt
 $ python setup.py install
 ```
