@@ -1,3 +1,4 @@
+import os
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import *
 from PyQt5.QtPrintSupport import *
@@ -331,6 +332,8 @@ class MainWindow(QMainWindow):
     def initUI(self):
         self.setGeometry(300, 300, 250, 150)
         self.setWindowTitle('nextSongs')
+        icon = os.path.join(os.path.dirname(__file__), 'icons', 'icon.png')
+        self.setWindowIcon(QIcon(icon))
 
         self.list = ListWindow()
         self.setCentralWidget(self.list)
