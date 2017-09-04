@@ -1,4 +1,3 @@
-import os
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import *
 from PyQt5.QtPrintSupport import *
@@ -7,6 +6,8 @@ from dateutil.relativedelta import relativedelta
 import PyQt5.Qt as Qt
 import datetime
 import nextSongs.nextSongs as nextSongs
+import os
+import subprocess
 import sys
 
 nextSongs.Config.read_config()
@@ -48,6 +49,25 @@ class QSongLocation(QStandardItem):
         super().__init__()
         self.song = song
         self.setText(str(song.location))
+
+class QSongFilepath(QStandardItem):
+    """
+    QStandardItem that lets the user open a file that is defined in song.filepath
+    """
+    def __init__(self, song):
+        super().__init__()
+        self.song = song
+        self.setEditable(False)
+        self.setText(self.text())
+
+    def update_text(self):
+        self.setText(self.text())
+
+    def text(self):
+        if self.song.filepath != "":
+            return 'open'
+        else:
+            ''
 
 class QSongForceMiddleCat(QStandardItem):
     """
@@ -106,15 +126,18 @@ class Todays_Songs(QDialog):
         list_popup = QTableView()
         list_popup.setWindowTitle('Todays songs')
         list_popup.setMinimumSize(600, 400)
-        model = QStandardItemModel(list_popup)
-        model.setHorizontalHeaderLabels(['Title', 'Location'])
+        self.model = QStandardItemModel(list_popup)
+        self.model.setHorizontalHeaderLabels(['Title', 'Location', 'File'])
         for song in st.get_songs_for_date(datetime.datetime.now()):
             item = QSong(song)
             item.setEditable(False)
             item2 = QSongLocation(song)
             item2.setEditable(False)
-            model.appendRow([item, item2])
-        list_popup.setModel(model)
+            item3 = QSongFilepath(song)
+            item3.setEditable(False)
+            self.model.appendRow([item, item2, item3])
+        list_popup.setModel(self.model)
+        list_popup.doubleClicked.connect(self.open_filepath)
         list_popup.resizeColumnsToContents()
 
         exit_btn = QPushButton('Exit')
@@ -123,6 +146,17 @@ class Todays_Songs(QDialog):
         self.verticalLayout = QVBoxLayout(self)
         self.verticalLayout.addWidget(self.list_popup)
         self.verticalLayout.addWidget(exit_btn)
+
+    def open_filepath(self, index):
+        item = self.model.itemFromIndex(index)
+        if not isinstance(item, QSongFilepath):
+            return
+        if item.song.filepath == "":
+            return
+        if sys.platform == 'linux':
+            subprocess.call(["xdg-open", item.song.filepath])
+        else:
+            os.startfile(item.song.filepath)
 
 
 class Preferences(QDialog):
@@ -185,9 +219,10 @@ class ListWindow(QWidget):
      
         # Create an empty model for the list's data
         self.model = QStandardItemModel(self.table)
-        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight', 'Location', 'Force middle old', 'Category'])
+        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight', 'Location', 'Force middle old', 'Category', 'File'])
         self.model.itemChanged.connect(self.on_item_changed)
-        self.model.setColumnCount(6)
+        self.table.doubleClicked.connect(self.open_filepath)
+        self.model.setColumnCount(7)
 
         # Fill table with data
         for song in st.songs:
@@ -200,7 +235,7 @@ class ListWindow(QWidget):
                 item.setCheckState(2)
          
             # Add the item to the model
-            self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), QSongForceMiddleCat(song), QSongCategory(song)])
+            self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), QSongForceMiddleCat(song), QSongCategory(song), QSongFilepath(song)])
          
         # Apply the model to the list view
         self.table.setModel(self.model)
@@ -233,6 +268,50 @@ class ListWindow(QWidget):
         # Show the window and run the app
         self.setLayout(layout)
 
+    def open_filepath(self, index):
+        item = self.model.itemFromIndex(index)
+        if not isinstance(item, QSongFilepath):
+            return
+        if item.song.filepath == "":
+            return
+        if sys.platform == 'linux':
+            subprocess.call(["xdg-open", item.song.filepath])
+        else:
+            os.startfile(item.song.filepath)
+
+    def set_filepath(self):
+        """
+        opens a dialog to ask for filepath of selected song and sets it
+        """
+        if len(self.table.selectedIndexes()) == 0:
+            return
+        fname = QFileDialog.getOpenFileName(self, 'Open file', 
+                         os.path.expanduser('~'), "All (*.*)")[0]
+        if fname == "":
+            return
+        indices = [self.table.selectedIndexes()[0]]
+        for index in indices:
+            item = self.model.itemFromIndex(index)
+            item.song.filepath = fname
+        self.table.resizeColumnsToContents()
+        self.update_categories()
+        st.write_songs()
+
+    def remove_filepath(self):
+        """
+        removes the filepath attribute from a selected song
+        """
+        if len(self.table.selectedIndexes()) == 0:
+            return
+        indices = [self.table.selectedIndexes()[0]]
+        for index in indices:
+            item = self.model.itemFromIndex(index)
+            item.song.filepath = ""
+        self.table.resizeColumnsToContents()
+        self.update_categories()
+        st.write_songs()
+
+
     def delete_selected_song(self):
         """
         deletes the first selected song
@@ -261,7 +340,7 @@ class ListWindow(QWidget):
         item.setCheckable(True)
         if song.current:
             item.setCheckState(2)
-        self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), item_middle_aged_cb, QSongCategory(song)])
+        self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), item_middle_aged_cb, QSongCategory(song), QSongFilepath(song)])
         self.table.resizeColumnsToContents()
         # Scroll table down, select inserted column and go into edit mode for first cell
         self.table.scrollToBottom()
@@ -318,6 +397,8 @@ class ListWindow(QWidget):
         for i in range(self.model.rowCount()):
             for j in range(self.model.columnCount()):
                 cell = self.model.itemFromIndex(self.model.index(i,j))
+                if hasattr(cell, 'update_text'):
+                    cell.update_text()
                 if isinstance(cell, QSongCategory):
                     cell.update_text()
 
@@ -361,12 +442,25 @@ class MainWindow(QMainWindow):
         prefAct.setShortcut('Ctrl+S')
         prefAct.triggered.connect(self.show_preferences)
 
+        # Set Filepath for selected song Action
+        filepathSetAction = QAction(QIcon('filepath.png'), '&Set Fielpath', self)
+        filepathSetAction.setShortcut('Ctrl+F')
+        filepathSetAction.triggered.connect(self.list.set_filepath)
+
+        # Remove Filepath for selected song action
+        filepathRemoveAction = QAction(QIcon('filepath.png'), '&Remove Fielpath', self)
+        filepathRemoveAction.setShortcut('Ctrl+R')
+        filepathRemoveAction.triggered.connect(self.list.remove_filepath)
+
         # Menu
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(prefAct)
         fileMenu.addAction(printAct)
         fileMenu.addAction(exitAct)
+        songMenu = menubar.addMenu('&Song')
+        songMenu.addAction(filepathSetAction)
+        songMenu.addAction(filepathRemoveAction)
 
         self.show()
 
@@ -418,6 +512,7 @@ class MainWindow(QMainWindow):
         prefs = Preferences()
         prefs.exec_()
         self.list.update_categories()
+
 
 def main():
     widget = MainWindow()

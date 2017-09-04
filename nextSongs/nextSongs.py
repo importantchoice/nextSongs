@@ -78,6 +78,7 @@ class Song:
         self.enforce_middle_aged_category = middle_old
         self.location = ""
         self.weight = 1
+        self.filepath = ""
 
     def __repr__(self):
         return "<Song(Title: " + self.title + ")>"
@@ -126,6 +127,7 @@ class SongTimer:
                 'weight': song.weight,
                 'current': song.current,
                 'location': song.location,
+                'filepath': song.filepath,
                 'enforce_middle_old': song.enforce_middle_aged_category
                 })
 
@@ -154,6 +156,8 @@ class SongTimer:
                 s.location = song['location']
             if 'enforce_middle_old' in song.keys():
                 s.enforce_middle_aged_category = song['enforce_middle_old']
+            if 'filepath' in song.keys():
+                s.filepath = song['filepath']
             self.songs.append(s)
 
     def get_middle_old_songs(self, date=None):
