@@ -69,7 +69,7 @@ class QSongFilepath(QStandardItem):
         else:
             ''
 
-class QSongForceMiddleCat(QStandardItem):
+class QSongFlags(QStandardItem):
     """
     Checkbox that enables/disables enforce_middle_old_category for a song in the Song Table
     """
@@ -77,11 +77,19 @@ class QSongForceMiddleCat(QStandardItem):
         super().__init__()
         self.song = song
         self.setEditable(False)
-        self.setCheckable(True)
-        if song.enforce_middle_aged_category:
-            self.setCheckState(2)
-        else:
-            self.setCheckState(0)
+        self.update_text()
+
+    def update_text(self):
+        self.setText(self.text())
+
+    def text(self):
+        text = ""
+        if not self.song.is_playable():
+            text += "Play Never"
+        if self.song.is_force_middle_old():
+            text += "Force Middle Old"
+        return text
+
 
 class QSongCategory(QStandardItem):
     """
@@ -103,6 +111,8 @@ class QSongCategory(QStandardItem):
         for i in range(0, nextSongs.Config.middle_old_period):
             if self.song in st.get_middle_old_songs_by_slot(i):
                 return "Middle; Day " + str(i + 1)
+        if not self.song.is_playable():
+            return 'None'
         else:
             return "Old"
 
@@ -219,7 +229,7 @@ class ListWindow(QWidget):
      
         # Create an empty model for the list's data
         self.model = QStandardItemModel(self.table)
-        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight', 'Location', 'Force middle old', 'Category', 'File'])
+        self.model.setHorizontalHeaderLabels(['Title', 'Date', 'Weight', 'Location', 'Flags', 'Category', 'File'])
         self.model.itemChanged.connect(self.on_item_changed)
         self.table.doubleClicked.connect(self.open_filepath)
         self.model.setColumnCount(7)
@@ -235,7 +245,7 @@ class ListWindow(QWidget):
                 item.setCheckState(2)
          
             # Add the item to the model
-            self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), QSongForceMiddleCat(song), QSongCategory(song), QSongFilepath(song)])
+            self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), QSongFlags(song), QSongCategory(song), QSongFilepath(song)])
          
         # Apply the model to the list view
         self.table.setModel(self.model)
@@ -293,8 +303,8 @@ class ListWindow(QWidget):
         for index in indices:
             item = self.model.itemFromIndex(index)
             item.song.filepath = fname
-        self.table.resizeColumnsToContents()
         self.update_categories()
+        self.table.resizeColumnsToContents()
         st.write_songs()
 
     def remove_filepath(self):
@@ -307,10 +317,39 @@ class ListWindow(QWidget):
         for index in indices:
             item = self.model.itemFromIndex(index)
             item.song.filepath = ""
-        self.table.resizeColumnsToContents()
         self.update_categories()
+        self.table.resizeColumnsToContents()
         st.write_songs()
 
+    def toggle_force_middle_old(self):
+        """
+        toggles force middle old category flag of selected song
+        """
+        if len(self.table.selectedIndexes()) == 0:
+            return
+        indices = [self.table.selectedIndexes()[0]]
+        for index in indices:
+            item = self.model.itemFromIndex(index)
+            # toggle force_middle_old status
+            item.song.set_force_middle_old(not item.song.is_force_middle_old())
+        self.update_categories()
+        self.table.resizeColumnsToContents()
+        st.write_songs()
+
+    def toggle_play_never(self):
+        """
+        toggles force middle old category flag of selected song
+        """
+        if len(self.table.selectedIndexes()) == 0:
+            return
+        indices = [self.table.selectedIndexes()[0]]
+        for index in indices:
+            item = self.model.itemFromIndex(index)
+            # toggle play never
+            item.song.set_playable(not item.song.is_playable())
+        self.update_categories()
+        self.table.resizeColumnsToContents()
+        st.write_songs()
 
     def delete_selected_song(self):
         """
@@ -323,9 +362,9 @@ class ListWindow(QWidget):
             item = self.model.itemFromIndex(i)
             st.songs.remove(item.song)
             self.model.removeRow(i.row())
-        self.table.resizeColumnsToContents()
         st.write_songs()
         self.update_categories()
+        self.table.resizeColumnsToContents()
 
     def add_song(self):
         """
@@ -334,13 +373,11 @@ class ListWindow(QWidget):
         song = nextSongs.Song("Song Title", datetime.datetime.now().date())
         st.songs.append(song)
         item = QSong(song)
-        item_middle_aged_cb = QSongForceMiddleCat(song)
-        item_middle_aged_cb.setCheckable(True)
 
         item.setCheckable(True)
         if song.current:
             item.setCheckState(2)
-        self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), item_middle_aged_cb, QSongCategory(song), QSongFilepath(song)])
+        self.model.appendRow([item, QSongDate(song), QSongWeight(song), QSongLocation(song), QSongFlags(song), QSongCategory(song), QSongFilepath(song)])
         self.table.resizeColumnsToContents()
         # Scroll table down, select inserted column and go into edit mode for first cell
         self.table.scrollToBottom()
@@ -381,9 +418,6 @@ class ListWindow(QWidget):
         elif isinstance(item, QSongLocation):
             # change location of a song
             item.song.location = item.text()
-        elif isinstance(item, QSongForceMiddleCat):
-            # change enforce_middle_aged_category of a song
-            item.song.enforce_middle_aged_category = item.checkState()
         # save changes to file
         st.write_songs()
 
@@ -443,7 +477,7 @@ class MainWindow(QMainWindow):
         prefAct.triggered.connect(self.show_preferences)
 
         # Set Filepath for selected song Action
-        filepathSetAction = QAction(QIcon('filepath.png'), '&Set Fielpath', self)
+        filepathSetAction = QAction(QIcon('filepath.png'), '&Set Filepath', self)
         filepathSetAction.setShortcut('Ctrl+F')
         filepathSetAction.triggered.connect(self.list.set_filepath)
 
@@ -451,6 +485,14 @@ class MainWindow(QMainWindow):
         filepathRemoveAction = QAction(QIcon('filepath.png'), '&Remove Fielpath', self)
         filepathRemoveAction.setShortcut('Ctrl+R')
         filepathRemoveAction.triggered.connect(self.list.remove_filepath)
+
+        # Toggle Playable attribute for selected song
+        togPlayableAction = QAction(QIcon('togPlayable.png'), 'Set/Unset Play &Never', self)
+        togPlayableAction.triggered.connect(self.list.toggle_play_never)
+
+        # Toggle force_middle_old_category attribute for selected song
+        togForceMiddleOldAction = QAction(QIcon('togforcemidold.png'), 'Set/Unset Force &Middle Old', self)
+        togForceMiddleOldAction.triggered.connect(self.list.toggle_force_middle_old)
 
         # Menu
         menubar = self.menuBar()
@@ -461,6 +503,9 @@ class MainWindow(QMainWindow):
         songMenu = menubar.addMenu('&Song')
         songMenu.addAction(filepathSetAction)
         songMenu.addAction(filepathRemoveAction)
+        songMenu.addSeparator()
+        songMenu.addAction(togForceMiddleOldAction)
+        songMenu.addAction(togPlayableAction)
 
         self.show()
 
@@ -512,6 +557,7 @@ class MainWindow(QMainWindow):
         prefs = Preferences()
         prefs.exec_()
         self.list.update_categories()
+        self.list.table.resizeColumnsToContents()
 
 
 def main():

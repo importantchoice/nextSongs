@@ -1,5 +1,6 @@
 from appdirs import *
 from dateutil.relativedelta import relativedelta
+from enum import Enum
 import datetime
 import json
 import logging
@@ -66,6 +67,9 @@ data_filename = os.path.join(user_data_dir(appname, appauthor), 'data.json')
 
 
 
+class SongFlags(Enum):
+    FORCE_MIDDLE_OLD = 1
+    REMOVE_FROM_PLAYABLE = 2
 
 class Song:
     """
@@ -75,10 +79,31 @@ class Song:
         self.title = title
         self.date = date
         self.current = current
-        self.enforce_middle_aged_category = middle_old
+        # self.enforce_middle_aged_category = middle_old
+        self.flags = []
         self.location = ""
         self.weight = 1
         self.filepath = ""
+
+    def is_force_middle_old(self):
+        return SongFlags.FORCE_MIDDLE_OLD in self.flags
+
+    def set_force_middle_old(self, b):
+        if b and SongFlags.FORCE_MIDDLE_OLD not in self.flags:
+            self.flags.append(SongFlags.FORCE_MIDDLE_OLD)
+            self.set_playable(True)
+        elif not b and SongFlags.FORCE_MIDDLE_OLD in self.flags:
+            self.flags.remove(SongFlags.FORCE_MIDDLE_OLD)
+
+    def is_playable(self):
+        return not SongFlags.REMOVE_FROM_PLAYABLE in self.flags
+
+    def set_playable(self, b):
+        if b and SongFlags.REMOVE_FROM_PLAYABLE in self.flags:
+            self.flags.remove(SongFlags.REMOVE_FROM_PLAYABLE)
+        elif not b and SongFlags.REMOVE_FROM_PLAYABLE not in self.flags:
+            self.flags.append(SongFlags.REMOVE_FROM_PLAYABLE)
+            self.set_force_middle_old(False)
 
     def __repr__(self):
         return "<Song(Title: " + self.title + ")>"
@@ -96,7 +121,7 @@ def get_test_songs():
     songs.append(Song("Test 4", datetime.date(2017, 8, 1)))
     songs.append(Song("Test 5", datetime.date(2017, 8, 2)))
     songs.append(Song("Test 6", datetime.date(2017, 8, 10)))
-    songs.append(Song("Test 7", datetime.date(2017, 8, 10)))
+    songs.append(Son/g("Test 7", datetime.date(2017, 8, 10)))
     songs.append(Song("Test 8", datetime.date(2017, 8, 10)))
     songs.append(Song("Test 9", datetime.date(2017, 8, 10)))
     songs.append(Song("Test 10", datetime.date(2017, 8, 10)))
@@ -116,19 +141,30 @@ class SongTimer:
         if add_test_songs:
             self.songs.extend(get_test_songs())
 
+    def get_playable_songs(self):
+        """
+        generates a list of songs the user wants to play
+        :return: list-of-Song
+        """
+        return list(filter(lambda x: x.is_playable(), self.songs))
+
     def write_songs(self):
         """
         save songs into file
         """
         data = {'songs': []}
         for song in self.songs:
+            flags = []
+            for flag in song.flags:
+                flags.append(flag.name)
+
             data["songs"].append({'title': song.title, 
                 'date': song.date.toordinal(), 
                 'weight': song.weight,
                 'current': song.current,
                 'location': song.location,
                 'filepath': song.filepath,
-                'enforce_middle_old': song.enforce_middle_aged_category
+                'flags': flags
                 })
 
         if not os.path.exists(os.path.dirname(data_filename)):
@@ -154,8 +190,13 @@ class SongTimer:
             s.weight = song['weight']
             if 'location' in song.keys():
                 s.location = song['location']
-            if 'enforce_middle_old' in song.keys():
-                s.enforce_middle_aged_category = song['enforce_middle_old']
+            if 'enforce_middle_old' in song.keys() and song['enforce_middle_old']:
+                # legace option
+                s.flags.append(SongFlags.FORCE_MIDDLE_OLD)
+            if 'flags' in song.keys():
+                for flag in song['flags']:
+                    s.flags.append(SongFlags[flag])
+
             if 'filepath' in song.keys():
                 s.filepath = song['filepath']
             self.songs.append(s)
@@ -168,17 +209,17 @@ class SongTimer:
         """
         count = self.get_count_of_middle_old_songs()
         middle_old_songs = []
-        songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
+        songs = list(reversed(sorted(self.get_playable_songs(), key=lambda x: x.date)))
         # add enforced middle old songs
         for song in songs:
             if len(middle_old_songs) >= count:
                 break
-            if song.enforce_middle_aged_category and not song.current:
+            if song.is_force_middle_old() and not song.current:
                 middle_old_songs.append(song)
 
         for song in songs:
             # skip current songs
-            if song.current or song.enforce_middle_aged_category:
+            if song.current or song.is_force_middle_old():
                 continue
             if len(middle_old_songs) >= count:
                 break
@@ -200,7 +241,7 @@ class SongTimer:
         :param exclude_songs: list-of-Songs that will be excluded from the generated list
         :return: list-of-Songs
         """
-        songs = self.songs
+        songs = self.get_playable_songs()
         middle_old_songs_count = self.get_count_of_middle_old_songs()
         old_songs = []
         middle_old_songs = self.get_middle_old_songs()
@@ -227,13 +268,13 @@ class SongTimer:
         calculates the count of songs that will be in the list of middle old songs
         :return: int
         """
-        if config.songs_per_day <= len(self.songs):
+        if config.songs_per_day <= len(self.get_playable_songs()):
             return (config.songs_per_day - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
         else:
             # if less songs are available than should be played on a day, use
             # count of available songs instead of configured daily songs as
             # base to calculate middle old songs per day
-            return (len(self.songs) - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
+            return (len(self.get_playable_songs()) - len(self.get_current_songs()) - config.old_songs_per_day) * config.middle_old_period
 
     def get_middle_old_songs_by_slot(self, slot, date=None):
         """
@@ -243,7 +284,7 @@ class SongTimer:
         :return: list-of-Songs
         """
         songs_today = []
-        songs = self.songs
+        songs = self.get_playable_songs()
         count_of_middle_old_songs = self.get_count_of_middle_old_songs()
         todays_middle_old_slot = slot
         if count_of_middle_old_songs <= 0:
@@ -264,7 +305,7 @@ class SongTimer:
         generates a list of current songs
         :return: list-of-Songs
         """
-        songs = self.songs
+        songs = self.get_playable_songs()
         songs_today = []
         for song in songs:
             if len(songs_today) > config.songs_per_day - config.old_songs_per_day:
@@ -283,7 +324,7 @@ class SongTimer:
         """
         songs_today = []
         # sort songs by date
-        songs = list(reversed(sorted(self.songs, key=lambda x: x.date)))
+        songs = list(reversed(sorted(self.get_playable_songs(), key=lambda x: x.date)))
         # append current songs
         songs_today.extend(self.get_current_songs())
 
