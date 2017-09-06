@@ -29,8 +29,8 @@ class Config:
         reads configuration from config file
         """
         if not os.path.isfile(config_filename):
+            logger.info("Created configuration file")
             Config.save_config()
-            raise Exception("config file does not exist. try to rerun the program.")
         with open(config_filename) as data_file:    
             config = json.load(data_file)
         Config.songs_per_day = config["songs_per_day"]
@@ -79,7 +79,6 @@ class Song:
         self.title = title
         self.date = date
         self.current = current
-        # self.enforce_middle_aged_category = middle_old
         self.flags = []
         self.location = ""
         self.weight = 1
@@ -182,7 +181,7 @@ class SongTimer:
         """
         if not os.path.isfile(data_filename):
             self.write_songs()
-            raise Exception("config file does not exist. try to rerun this program")
+            logger.info("created data file.")
         with open(data_filename) as data_file:    
             data = json.load(data_file)
         for song in data['songs']:
