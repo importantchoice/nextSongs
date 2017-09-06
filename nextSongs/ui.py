@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import *
 from dateutil.relativedelta import relativedelta
 import PyQt5.Qt as Qt
 import datetime
+import datetime
 import nextSongs.nextSongs as nextSongs
 import os
 import subprocess
@@ -13,6 +14,22 @@ import sys
 nextSongs.Config.read_config()
 st = nextSongs.SongTimer()
 st.read_songs()
+
+class QGitCommit(QStandardItem):
+    """
+    QStandardItem that represents a git commit
+    """
+    def __init__(self, commit):
+        super().__init__()
+        self.commit = commit
+        self.setText(self.text())
+
+    def text(self):
+        if self.commit.sha().hexdigest() == nextSongs.git_instance.get_current_head().decode():
+            status = '→ '
+        else:
+            status = '    '
+        return status + str(datetime.datetime.fromtimestamp(self.commit.author_time)) + " - " + self.commit.message.decode()
 
 class QSong(QStandardItem):
     """
@@ -116,8 +133,56 @@ class QSongCategory(QStandardItem):
         else:
             return "Old"
 
+def show_restore_dialog():
+    """
+    open Todays_Songs dialog
+    """
+    restore_list = RestoreList()
+    restore_list.exec_()
 
+class RestoreList(QDialog):
+    """
+    This dialog shows a list of songs to practice this day
+    """
+    def __init__(self):
+        super().__init__()
+        list_popup = QListView()
+        list_popup.setWindowTitle('Restore a previous version')
+        list_popup.setMinimumSize(600, 400)
+        self.model = QStandardItemModel(list_popup)
+        nextSongs.git_instance.get_current_head()
+        for commit in nextSongs.git_instance.get_commits():
+            item = QGitCommit(commit)
+            item.setEditable(False)
+            self.model.appendRow([item])
+        list_popup.setModel(self.model)
 
+        restore_btn = QPushButton('Restore')
+        restore_btn.clicked.connect(self.restore)
+        exit_btn = QPushButton('Exit')
+        exit_btn.clicked.connect(self.accept)
+        self.list_popup = list_popup
+        self.verticalLayout = QVBoxLayout(self)
+        self.verticalLayout.addWidget(self.list_popup)
+        self.verticalLayout.addWidget(restore_btn)
+        self.verticalLayout.addWidget(exit_btn)
+
+    def restore(self):
+        """
+        restores to the commit selected in list
+        """
+        if len(self.list_popup.selectedIndexes()) == 0:
+            return
+        indices = [self.list_popup.selectedIndexes()[0]]
+        for index in indices:
+            item = self.model.itemFromIndex(index)
+            nextSongs.git_instance.restore(item.commit)
+        st.songs = []
+        st.read_songs()
+        widget.list.close()
+        widget.list = ListWindow()
+        widget.setCentralWidget(widget.list)
+        self.accept()
 
 
 def show_todays_songs():
@@ -209,6 +274,7 @@ class Preferences(QDialog):
         nextSongs.Config.old_songs_per_day = self.settings_ospd.value()
         nextSongs.Config.middle_old_period = self.settings_mop.value()
         nextSongs.Config.save_config()
+        nextSongs.git_instance.commit("changed preferences")
         self.accept()
 
 
@@ -225,7 +291,6 @@ class ListWindow(QWidget):
  
         # Our main window will be a QTableView
         self.table = QTableView()
-        self.table.setMinimumSize(600, 400)
      
         # Create an empty model for the list's data
         self.model = QStandardItemModel(self.table)
@@ -302,10 +367,11 @@ class ListWindow(QWidget):
         indices = [self.table.selectedIndexes()[0]]
         for index in indices:
             item = self.model.itemFromIndex(index)
+            former_path = item.song.filepath
             item.song.filepath = fname
         self.update_categories()
         self.table.resizeColumnsToContents()
-        st.write_songs()
+        st.write_songs("changed filepath for Song '{}' from '{}' to {}".format(item.song.title, former_path, item.song.filepath))
 
     def remove_filepath(self):
         """
@@ -319,7 +385,7 @@ class ListWindow(QWidget):
             item.song.filepath = ""
         self.update_categories()
         self.table.resizeColumnsToContents()
-        st.write_songs()
+        st.write_songs("removed filepath from Song '{}'".format(item.song.title))
 
     def toggle_force_middle_old(self):
         """
@@ -334,11 +400,13 @@ class ListWindow(QWidget):
             item.song.set_force_middle_old(not item.song.is_force_middle_old())
         self.update_categories()
         self.table.resizeColumnsToContents()
-        st.write_songs()
+        if item.song.is_force_middle_old(): toggle_status = 'forced'
+        else: toggle_status = 'unforced'
+        st.write_songs("{} Song '{}' to be in middle old category".format(toggle_status, item.song.title))
 
     def toggle_play_never(self):
         """
-        toggles force middle old category flag of selected song
+        toggles play_never flag of selected song
         """
         if len(self.table.selectedIndexes()) == 0:
             return
@@ -349,7 +417,9 @@ class ListWindow(QWidget):
             item.song.set_playable(not item.song.is_playable())
         self.update_categories()
         self.table.resizeColumnsToContents()
-        st.write_songs()
+        if item.song.is_playable(): toggle_status = 'unmarked'
+        else: toggle_status = 'marked'
+        st.write_songs("{} Song '{}' as 'played never' ".format(toggle_status, item.song.title))
 
     def delete_selected_song(self):
         """
@@ -362,7 +432,7 @@ class ListWindow(QWidget):
             item = self.model.itemFromIndex(i)
             st.songs.remove(item.song)
             self.model.removeRow(i.row())
-        st.write_songs()
+        st.write_songs("Deleted Song '{}'".format(item.song.title))
         self.update_categories()
         self.table.resizeColumnsToContents()
 
@@ -384,17 +454,25 @@ class ListWindow(QWidget):
         self.table.selectRow(self.model.rowCount() - 1)
         self.table.edit(self.table.selectedIndexes()[0])
         # save songs
-        st.write_songs()
+        st.write_songs("Created a new song")
         self.update_categories()
 
     def on_item_changed(self, item):
         """
         callback function to update song items according to the change that happened
         """
+        action = None
         if isinstance(item, QSong):
             # change song title and its current-state
-            item.song.title = item.text()
-            item.song.current = item.checkState()
+            if item.song.title != item.text():
+                action = "Changed Song title from '{}' to '{}'".format(item.song.title, item.text())
+                item.song.title = item.text()
+            else:
+                if item.checkState():
+                    action = "set Song '{}' as current".format(item.song.title)
+                else:
+                    action = "removed Song '{}' from current category".format(item.song.title)
+                item.song.current = item.checkState()
         elif isinstance(item, QSongDate):
             # try to change date of the song. if it fails, reset to old date
             try:
@@ -403,23 +481,28 @@ class ListWindow(QWidget):
                 month = int(d[1])
                 day = int(d[2])
                 d = datetime.date(year, month, day)
+                former_date = item.song.date
                 item.song.date = d
                 item.setText(str(item.song.date))
-
+                action = "changed date of Song '{}' from {} to {}".format(item.song.title, former_date, item.song.date)
             except:
                 item.setText(str(item.song.date))
         elif isinstance(item, QSongWeight):
             # try to change weight of a song. otherwise reset to old weight
             try:
                 new_weight = int(item.text())
+                old_weight = item.song.weight
                 item.song.weight = new_weight
+                action = "changed weight of Song '{}' from {} to {}".format(item.song.title, old_weight, new_weight)
             except:
                 item.setText(str(item.song.weight))
         elif isinstance(item, QSongLocation):
             # change location of a song
-            item.song.location = item.text()
+            if item.song.location != item.text():
+                action = "changed location of Song '{}' from '{}' to '{}'".format(item.song.title, item.song.location, item.text())
+                item.song.location = item.text()
         # save changes to file
-        st.write_songs()
+        st.write_songs(action)
 
         # update categories
         self.update_categories()
@@ -453,6 +536,7 @@ class MainWindow(QMainWindow):
 
     def initUI(self):
         self.setGeometry(300, 300, 250, 150)
+        self.setMinimumSize(600, 400)
         self.setWindowTitle('nextSongs')
         self.setWindowIcon(QIcon(self.get_icon_path()))
 
@@ -494,11 +578,16 @@ class MainWindow(QMainWindow):
         togForceMiddleOldAction = QAction(QIcon('togforcemidold.png'), 'Set/Unset Force &Middle Old', self)
         togForceMiddleOldAction.triggered.connect(self.list.toggle_force_middle_old)
 
+        # Open Restore Window Action
+        openRestoreAction = QAction(QIcon('restore.png'), '&Restore', self)
+        openRestoreAction.triggered.connect(show_restore_dialog)
+
         # Menu
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(prefAct)
         fileMenu.addAction(printAct)
+        fileMenu.addAction(openRestoreAction)
         fileMenu.addAction(exitAct)
         songMenu = menubar.addMenu('&Song')
         songMenu.addAction(filepathSetAction)
@@ -559,9 +648,9 @@ class MainWindow(QMainWindow):
         self.list.update_categories()
         self.list.table.resizeColumnsToContents()
 
+widget = MainWindow()
 
 def main():
-    widget = MainWindow()
     app.exec_()
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 from appdirs import *
 from dateutil.relativedelta import relativedelta
+from dulwich import porcelain
+from dulwich.repo import Repo, NotGitRepository
 from enum import Enum
 import datetime
 import json
@@ -7,8 +9,8 @@ import logging
 import os
 import random
 
-
 logger = logging.getLogger('nextSongs')
+
 
 class Config:
     """
@@ -65,7 +67,57 @@ appauthor = 'random'
 config_filename = os.path.join(user_data_dir(appname, appauthor), 'config.json')
 data_filename = os.path.join(user_data_dir(appname, appauthor), 'data.json')
 
+class Git():
+    """
+    object that holds the git repository
+    """
+    def __init__(self):
+        self.repo_path = user_data_dir(appname, appauthor)
+        self.files_under_version_controll = ['config.json', 'data.json']
+        # initialize repo if it doesn't exist
+        try:
+            self.repo = Repo(self.repo_path)
+        except NotGitRepository:
+            # create repo
+            Repo.init(self.repo_path)
+            self.repo = Repo(self.repo_path)
+            self.commit('initial commit')
 
+    def commit(self, message):
+        """
+        commits the current status of files_under_version_controll
+        :param message: str; commit message
+        """
+        self.repo.stage(self.files_under_version_controll)
+        self.repo.do_commit(str.encode(message), str.encode('nextSongs'))
+
+    def get_current_head(self):
+        """
+        get sha as bytes of current head
+        :return: bytes; sha1 checksum of current head
+        """
+        return self.repo.head()
+
+    def get_commits(self):
+        """
+        generates a list of last commits
+        :return: list-of-dulwich.objects.Commit
+        """
+        commits = []
+        for i in self.repo.get_walker():
+            commits.append(i.commit)
+        return reversed(sorted(commits, key=lambda x: datetime.datetime.fromtimestamp( x.author_time )))
+
+    def restore(self, commit):
+        """
+        does a hard reset to a given commit
+        :param commit: list-of-dulwich.objects.Commit; commit to reset to
+        """
+        porcelain.reset(self.repo, 'hard', str.encode(commit.sha().hexdigest()))
+        self.commit("Restored setting and data.")
+        Config.read_config()
+
+git_instance = Git()
 
 class SongFlags(Enum):
     FORCE_MIDDLE_OLD = 1
@@ -147,7 +199,7 @@ class SongTimer:
         """
         return list(filter(lambda x: x.is_playable(), self.songs))
 
-    def write_songs(self):
+    def write_songs(self, change_message=None):
         """
         save songs into file
         """
@@ -174,6 +226,10 @@ class SongTimer:
                     raise
         with open(data_filename, "w+") as f:
             json.dump(data, f)
+
+        # commit changes if change_message was provided
+        if change_message:
+            git_instance.commit(change_message)
 
     def read_songs(self):
         """
