@@ -518,6 +518,7 @@ class ListWindow(QWidget):
                     cell.update_text()
                 if isinstance(cell, QSongCategory):
                     cell.update_text()
+        widget.updateStatusbar()
 
 
 
@@ -534,12 +535,19 @@ class MainWindow(QMainWindow):
             base_path = os.path.dirname(__file__)
         return os.path.join(base_path, 'icons', 'icon.png')
 
+    def updateStatusbar(self):
+        self.statusBar().showMessage("Status: " + st.get_status())
+
     def initUI(self):
         self.setGeometry(300, 300, 250, 150)
         self.setMinimumSize(600, 400)
         self.setWindowTitle('nextSongs')
         self.setWindowIcon(QIcon(self.get_icon_path()))
 
+        # set status bar
+        self.updateStatusbar()
+
+        # set ListWindow as central widget
         self.list = ListWindow()
         self.setCentralWidget(self.list)
 

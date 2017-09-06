@@ -192,6 +192,25 @@ class SongTimer:
         if add_test_songs:
             self.songs.extend(get_test_songs())
 
+    def get_status(self):
+        """
+        checks for some things that might confuse the user
+        :return: string
+        """
+        if self.get_count_of_middle_old_songs() <= 0:
+            return "No place for middle old songs as current and old songs fill all free slots."
+        if len(self.get_current_songs()) + Config.old_songs_per_day > Config.songs_per_day:
+            return "Too many songs marked as current"
+        if Config.old_songs_per_day > Config.songs_per_day:
+            return "Requested more old songs for playlist than free slots available"
+        middle_old_songs = self.get_middle_old_songs()
+        for song in self.songs:
+            if song.is_force_middle_old() and song not in middle_old_songs:
+                return "More songs forced to be in middle old category than there are middle old slots available"
+        return "OK"
+
+
+
     def get_playable_songs(self):
         """
         generates a list of songs the user wants to play
