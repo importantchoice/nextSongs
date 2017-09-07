@@ -21,6 +21,7 @@ class Config:
     middle_old_period = 1  # count of middle old songs that will be played per day
     fill_up_song_list = False # fill song list until the songs_per_day count is reached
     shuffle_middle_old = True # wheather to shuffle middle old song list or not
+    last_filepath = os.path.expanduser('~') # last directory where a filepath was taken from
 
     def __inti__(self):
         pass
@@ -39,6 +40,8 @@ class Config:
         Config.old_songs_per_day = config["old_songs_per_day"]
         Config.middle_old_period = config["middle_old_period"]
         Config.fill_up_song_list = config["fill_up_song_list"]
+        if "last_filepath" in config.keys():
+            Config.last_filepath = config["last_filepath"]
 
     @staticmethod
     def save_config():
@@ -50,6 +53,7 @@ class Config:
         config["old_songs_per_day"] = Config.old_songs_per_day
         config["middle_old_period"] = Config.middle_old_period
         config["fill_up_song_list"] = Config.fill_up_song_list
+        config["last_filepath"] = Config.last_filepath
 
         if not os.path.exists(os.path.dirname(config_filename)):
             try:
@@ -155,6 +159,11 @@ class Song:
         elif not b and SongFlags.REMOVE_FROM_PLAYABLE not in self.flags:
             self.flags.append(SongFlags.REMOVE_FROM_PLAYABLE)
             self.set_force_middle_old(False)
+
+    def set_filepath(self, filepath):
+        self.filepath = filepath
+        Config.last_filepath = os.path.dirname(filepath)
+        Config.save_config()
 
     def filepath_exists(self):
         if self.filepath == "":

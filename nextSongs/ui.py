@@ -370,14 +370,14 @@ class ListWindow(QWidget):
         if len(self.table.selectedIndexes()) == 0:
             return
         fname = QFileDialog.getOpenFileName(self, 'Open file', 
-                         os.path.expanduser('~'), "All (*.*)")[0]
+                         nextSongs.Config.last_filepath, "All (*.*)")[0]
         if fname == "":
             return
         indices = [self.table.selectedIndexes()[0]]
         for index in indices:
             item = self.model.itemFromIndex(index)
             former_path = item.song.filepath
-            item.song.filepath = fname
+            item.song.set_filepath(fname)
         self.update_categories()
         self.table.resizeColumnsToContents()
         st.write_songs("changed filepath for Song '{}' from '{}' to {}".format(item.song.title, former_path, item.song.filepath))
