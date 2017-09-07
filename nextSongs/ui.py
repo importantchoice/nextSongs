@@ -75,10 +75,19 @@ class QSongFilepath(QStandardItem):
         super().__init__()
         self.song = song
         self.setEditable(False)
-        self.setText(self.text())
+        self.update_text()
 
     def update_text(self):
         self.setText(self.text())
+        if not self.song.filepath_exists():
+            brush = QBrush()
+            color = QColor().yellow()
+            brush.setColor(color)
+            self.setBackground(QBrush(QColor(255, 128, 128)))
+            self.setToolTip("File does not exist under:\n" + self.song.filepath)
+        else:
+            self.setBackground(QBrush())
+            self.setToolTip(self.song.filepath)
 
     def text(self):
         if self.song.filepath != "":

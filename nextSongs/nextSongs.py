@@ -156,6 +156,11 @@ class Song:
             self.flags.append(SongFlags.REMOVE_FROM_PLAYABLE)
             self.set_force_middle_old(False)
 
+    def filepath_exists(self):
+        if self.filepath == "":
+            return True
+        return os.path.isfile(self.filepath)
+
     def __repr__(self):
         return "<Song(Title: " + self.title + ")>"
 

@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='nextSongs',
-    version='0.2.0',
+    version='0.3.0',
     packages=['nextSongs'],
     include_package_data=True,
     entry_points={
