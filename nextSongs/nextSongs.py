@@ -83,6 +83,12 @@ class Git():
             self.repo = Repo(self.repo_path)
         except NotGitRepository:
             # create repo
+            if not os.path.exists(self.repo_path):
+                try:
+                    os.makedirs(self.repo_path)
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
             Repo.init(self.repo_path)
             self.repo = Repo(self.repo_path)
             self.commit('initial commit')
