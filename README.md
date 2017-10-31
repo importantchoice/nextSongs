@@ -10,7 +10,7 @@ All songs are divided into three categories: `current`, `middle old` and `old`.
 
 * Songs in the `current` category will appear every day.
 * Songs in the `middle old` category will appear every n-th day. This interval can be configured.
-* Songs in the `old` category will appear randomly
+* Songs in the `old` category will appear randomly. Songs with a higher weight will appear more often.
 
 The count of songs in `middle old` category will be dynamically calculated.
 
